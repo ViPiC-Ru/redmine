@@ -34,9 +34,13 @@ cscript redmine.min.js <url> <key> issues.change [<query>] <fields> [<filters>]
 # ѕримеры использовани€
 —инхронизировать пользователей из контейнере **Active Directory** с **GUID** `{8F640E75-C072-47CA-5DBD-66AFC5D7E38F}` в приложение **Redmine** расположенное по адресу https://redmine.org использу€ **ключ доступа** пользовател€ `8dbfd7b0a9c9279a97fedfb82710aed96bcf53fc`. ¬ **настраиваемое полей** с идентификатором **12** записать **руководител€** пользовател€ в формате `lastname_firstname`, а в **поле** с идентификатором **10** записать **«аметку** о пользователе. ”казать **режим аутентификации** как **1**.
 ```bat
-cscript redmine.min.js https://redmine.org 8dbfd7b0a9c9279a97fedfb82710aed96bcf53fc users.sync login:sAMAccountName;firstname:givenName;lastname:sn;mail:mail;12:manager;10:info {8F640E75-C072-47CA-5DBD-66AFC5D7E38F} 1 lastname_firstname
+cscript redmine.min.js https://redmine.org 8dbfd7b0a9c9279a97fedfb82710aed96bcf53fc users.sync
+login:sAMAccountName;firstname:givenName;lastname:sn;mail:mail;12:manager;10:info
+{8F640E75-C072-47CA-5DBD-66AFC5D7E38F} 1 lastname_firstname
 ```
 »зменить идентификатор **статуса** на **8**, процент **выполнени€** на **10** и добавить **комментарий** с шаблонизацией дл€ задач из **сохранЄнного запроса** с идентификатором **46**, если **описание** задачи содержит `за€вка`, **настраиваемое поле** с идентификатором **10** содержит `сери€`, это **не приватна€** задача и задача назначена автору.
 ```bat
-cscript redmine.min.js https://redmine.org 8dbfd7b0a9c9279a97fedfb82710aed96bcf53fc issues.change 46 status:8;done:10;notes:"{author.name}, ваша за€вка автоматически зарегистрирована в системе." description:за€вка;10:сери€;private:true;assigned.id:{author.id}
+cscript redmine.min.js https://redmine.org 8dbfd7b0a9c9279a97fedfb82710aed96bcf53fc issues.change
+46 status:8;done:10;notes:"{author.name}, ваша за€вка автоматически зарегистрирована в системе."
+description:за€вка;10:сери€;private:true;assigned.id:{author.id}
 ```
