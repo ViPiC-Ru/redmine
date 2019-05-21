@@ -1,12 +1,12 @@
-/* 0.1.0 взаимодействие с redmine по средствам api
+/* 0.1.1 взаимодействие с redmine по средствам api
 
-cscript redmine.min.js <url> <key> <task> [... <param>]
+cscript redmine.min.js <url> <key> <method> [... <param>]
 cscript redmine.min.js <url> <key> users.sync <fields> [<container>] [<auth>] [<format>]
 cscript redmine.min.js <url> <key> issues.change [<query>] <fields> [<filters>]
 
 <url>               - базовый url адрес дл€ запросов к api
 <key>               - ключ доступа к api дл€ взаимодействи€
-<task>              - им€ выполн€емой задачи
+<method>            - собственный метод который нужно выполнить
     users.sync      - синхранизаци€ пользователей из ldap
         <fields>    - id пол€ и имени аттрибута LDAP в формате id:name;id:name
         <container> - контейнер пользователей в LDAP
@@ -375,7 +375,7 @@ var readmine = new App({
                 return user;
             }
         },
-        task: {// поддерживаемые задачи
+        method: {// поддерживаемые методы
 
             /**
              * —инхранизирует пользователей из LDAP в приложение.
@@ -672,7 +672,7 @@ var readmine = new App({
             return response;
         },
         init: function () {// функци€ инициализации приложени€
-            var value, key, flag, task, list = [], count = 0,
+            var value, key, flag, method, list = [], count = 0,
                 index = 0, error = 0;
 
             // получаем адрес дл€ запросов к api
@@ -698,26 +698,26 @@ var readmine = new App({
                 } else error = 3;
                 index++;
             };
-            // получаем идентификатор задачи
+            // получаем идентификатор метода
             if (!error) {// если нету ошибок
                 if (index < wsh.arguments.length) {// если передан параметр
                     value = wsh.arguments(index);// получаем очередное значени
-                    task = app.task[value];// получаем функцию задачи
-                    if (task) {// если задача поддерживаетс€
+                    method = app.method[value];// получаем функцию метода
+                    if (method) {// если метод поддерживаетс€
                     } else error = 6;
                 } else error = 5;
                 index++;
             };
-            // формируем список параметров дл€ задачи
+            // формируем список параметров дл€ вызова метода
             if (!error) {// если нету ошибок
                 for (var i = index, iLen = wsh.arguments.length; i < iLen; i++) {
                     value = wsh.arguments(i);// получаем очередное значение
                     list.push(value);// добавл€ем значение в список
                 };
             };
-            // выполн€ем поддерживаемую задачу
+            // выполн€ем поддерживаемый метод
             if (!error) {// если нету ошибок
-                count = task.apply(app, list);
+                count = method.apply(app, list);
             };
             // завершаем сценарий кодом
             value = error ? -1 * error : count;
