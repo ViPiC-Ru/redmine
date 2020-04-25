@@ -460,8 +460,7 @@ var readmine = new App({
                         "WHERE 'objectClass' = 'user'"
                         + " AND '" + fields["firstname"].name + "' = '*'"
                         + " AND '" + fields["lastname"].name + "' = '*'"
-                        + " AND '" + fields["login"].name + "' = '*'"
-                        + " AND '" + fields["mail"].name + "' = '*'",
+                        + " AND '" + fields["login"].name + "' = '*'",
                         container
                     );
                 };
@@ -470,6 +469,10 @@ var readmine = new App({
                     item = items[i];// получаем очередной элимент
                     user = app.fun.item2user(item, fields);
                     if (user.login) {// если у пользователя есть логин
+                        if (!user.mail) {// если у пользователя нет почты
+                            user.status = app.val.stLocked;
+                            delete user.mail;
+                        };
                         login = user.login.toLowerCase();
                         users[login] = user;
                     } else error = 2;
