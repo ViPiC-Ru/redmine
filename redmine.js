@@ -1,17 +1,16 @@
-/* 0.1.1 взаимодействие с redmine по средствам api
+/* 0.1.1d взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <url> <key> <method> [... <param>]
-cscript redmine.min.js <url> <key> users.sync <fields> [<container>] [<auth>] [<format>]
+cscript redmine.min.js <url> <key> users.sync <fields> [<container>] [<auth>]
 cscript redmine.min.js <url> <key> issues.change [<query>] <fields> [<filters>]
 
 <url>               - базовый url адрес для запросов к api
 <key>               - ключ доступа к api для взаимодействия
 <method>            - собственный метод который нужно выполнить
     users.sync      - синхранизация пользователей из ldap
-        <fields>    - id поля и имени аттрибута LDAP в формате id:name;id:name
+        <fields>    - id поля и имени аттрибута LDAP в формате id:name#format;id:name
         <container> - контейнер пользователей в LDAP
         <auth>      - id режима аутентификации в приложении
-        <format>    - формат отображения имён
     issues.change   - изменение задач в сохранённом запросе
         <query>     - id сохранённого запроса для всех проектов
         <fields>    - поля и их значения в формате id:value;id:value с шаблонизацией
@@ -25,6 +24,7 @@ var readmine = new App({
     delimVal: ":",      // разделитель значения от ключа
     delimKey: ";",      // разделитель ключей между собой
     delimId: ".",       // разделитель идентификаторов в ключе
+    delimFormat: "#",   // разделитель формата в значении
     stActive: 1,        // статус активного пользователя
     stRegistered: 2,    // статус зарегистрированного пользователя
     stLocked: 3         // статус заблокированного пользователя
@@ -262,14 +262,12 @@ var readmine = new App({
              * Преобразует элимент LDAP в объект пользователя.
              * @param {object} item - Элимент с данными для конвертации.
              * @param {object} fields - Объект соответствия id поля и имени аттрибута LDAP.
-             * @param {object} [format] - Формат отображения имён.
              * @returns {object} Объект пользователя.
              */
 
-            item2user: function (item, fields, format) {// конвертируем элимент в пользователя
-                var key, value, flag, name, unit, manager, user = {}, error = 0;
+            item2user: function (item, fields) {// конвертируем элимент в пользователя
+                var key, value, flag, field, unit, manager, user = {}, error = 0;
 
-                if (!format) format = "lastname_firstname";
                 // проверяем наличее элимента с данными
                 if (!error) {// если нету ошибок
                     if (item) {// если элимент передан
@@ -292,13 +290,14 @@ var readmine = new App({
                 if (!error) {// если нету ошибок
                     for (var id in fields) {// пробигаемся по соответствию
                         // получаем значение для поля
-                        name = fields[id];// получаем имя аттрибута
-                        value = null;// сбрасываем значение
+                        field = fields[id];// получаем поле
+                        value = "";// сбрасываем значение
                         try {// пробуем получить значение поля
-                            value = item.get(name);
+                            value = item.get(field.name);
                         } catch (e) { };// игнорируем исключения
+                        if (field.format) value = app.fun.format(field.format, value);
                         // преобразовываем нектрые значения
-                        switch (name) {// дополнительные преобразования
+                        switch (field.name) {// дополнительные преобразования
                             case "manager":// руководитель
                                 manager = null;// сбрасываем значение менеджера
                                 if (value && value != key) {// если есть значение
@@ -306,15 +305,15 @@ var readmine = new App({
                                     if (!manager) {// если кеш пуст
                                         unit = app.wsh.getLDAP(value)[0];
                                         if (unit) {// если элимент получен
-                                            manager = app.fun.item2user(unit, fields, format);
+                                            manager = app.fun.item2user(unit, fields);
                                             app.cache['user'][value] = manager;
                                         };
                                     };
                                 };
-                                value = null;// сбрасываем значение
+                                value = "";// сбрасываем значение
                                 flag = manager && app.val.stActive == manager.status;
                                 if (flag) {// если есть руководитель и он не заблокирован
-                                    switch (format) {// поддерживаемые форматы
+                                    switch (field.format) {// поддерживаемые форматы
                                         case "firstname_lastname":
                                             value = [// формируем значение
                                                 manager.firstname,
@@ -336,12 +335,6 @@ var readmine = new App({
                                         case "firstname":
                                             value = manager.firstname;
                                             break
-                                        case "lastname_firstname":
-                                            value = [// формируем значение
-                                                manager.lastname,
-                                                manager.firstname
-                                            ].join(" ");
-                                            break
                                         case "lastnamefirstname":
                                             value = [// формируем значение
                                                 manager.lastname,
@@ -360,6 +353,12 @@ var readmine = new App({
                                         case "username":
                                             value = manager.login;
                                             break
+                                        case "lastname_firstname":
+                                        default:// другие варианты
+                                            value = [// формируем значение
+                                                manager.lastname,
+                                                manager.firstname
+                                            ].join(" ");
                                     };
                                 };
                                 break;
@@ -373,48 +372,103 @@ var readmine = new App({
                 };
                 // возвращаем результат
                 return user;
+            },
+
+            /**
+             * Форматирует переданные данные.
+             * @param {string} name - Имя фильтра для форматирования.
+             * @param {string|number} value - Значение для форматирования.
+             * @returns {string} Отформатированное или пустое значение.
+             */
+
+            format: function (name, value) {
+                var length, list = [];
+
+                name = name ? ("" + name).toLowerCase() : "";
+                switch (name) {// поддерживаемые форматы
+                    case "phone":// телефонный номер
+                        // очищаем значение
+                        value = value ? app.lib.trim("" + value) : "";
+                        value = value.replace(/\D/g, "");// оставляем только цыфры
+                        if (!value.indexOf("8") && value.length > 10) value = "7" + value.substr(1);
+                        // форматируем значение
+                        list = [// массив значений для форматирования
+                            { position: 0, length: value.length - 10 },
+                            { position: value.length - 10, length: 3 },
+                            { position: value.length - 7, length: 3 },
+                            { position: value.length - 4, length: 2 },
+                            { position: value.length - 2, length: 2 }
+                        ];
+                        for (var i = 0, iLen = list.length; i < iLen; i++) {
+                            length = list[i].length + Math.min(0, list[i].position);
+                            list[i] = value.substr(Math.max(0, list[i].position), Math.max(0, length));
+                        };
+                        if (!list[0] && list[1]) list[0] = 7;
+                        value = "";// пустое значение
+                        value += list[0] ? "+" + (list[0]) : "";
+                        value += list[1] ? " (" + list[1] + ") " : "";
+                        value += list[2] ? list[2] + "-" : "";
+                        value += list[3] ? list[3] + (list[2] ? "-" : "") : "";
+                        value += list[4] ? list[4] : "";
+                        break;
+                    default:// не известный формат
+                        value = "";
+                        break;
+                };
+                // возвращаем результат
+                return value;
             }
         },
         method: {// поддерживаемые методы
 
             /**
              * Синхранизирует пользователей из LDAP в приложение.
-             * @param {string} fields - Соответствие id поля и имени аттрибута LDAP в формате id:name;id:name.
+             * @param {string} fields - Соответствие id поля и имени аттрибута LDAP в формате id:name#format;id:name.
              * @param {string} [container] - Контейнер пользователей в LDAP.
              * @param {string} [auth] - Режим аутентификации в приложении.
-             * @param {string} [format] - Формат отображения имён.
              * @returns {number} Количество изменённых пользователей.
              */
 
-            "users.sync": function (fields, container, auth, format) {
-                var data, list, unit, login, value, status, item, items,
-                    user, users = {}, count = 0, error = 0;
+            "users.sync": function (fields, container, auth) {
+                var data, list, unit, login, id, value, status, item, items,
+                    field, flag, user, users = {}, count = 0, error = 0;
 
                 // получаем соответствие полей
                 if (!error) {// если нету ошибок
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : {};
-                    if (fields["login"] && fields["firstname"] && fields["lastname"] && fields["mail"]) {
-                        for (var id in fields) {// пробегаемся по списку полученных полей
-                            value = fields[id].split("'").join("");
-                            fields[id] = value;
+                    for (var id in fields) {// пробегаемся по списку полученных полей
+                        value = fields[id].split("'").join("");
+                        field = {// объект данных поля
+                            name: value.split(app.val.delimFormat)[0],
+                            format: value.split(app.val.delimFormat)[1]
                         };
+                        fields[id] = field;
+                    };
+                    // проверяем наличее обязательных полей
+                    flag = true;// проверка пройдена
+                    list = ["login", "firstname", "lastname", "mail"];
+                    for (var i = 0, iLen = list.length; flag && i < iLen; i++) {
+                        id = list[i];// получаем очередной идентификатор для поля
+                        flag = flag && fields[id] && fields[id].name;
+                    };
+                    if (flag) {// если есть обязательные поля
                     } else error = 1;
                 };
                 // получаем массив пользователей ldap
                 if (!error) {// если нету ошибок
                     items = app.wsh.getLDAP(
                         "WHERE 'objectClass' = 'user'"
-                        + " AND '" + fields["firstname"] + "' = '*'"
-                        + " AND '" + fields["lastname"] + "' = '*'"
-                        + " AND '" + fields["login"] + "' = '*'"
-                        + " AND '" + fields["mail"] + "' = '*'",
+                        + " AND '" + fields["firstname"].name + "' = '*'"
+                        + " AND '" + fields["lastname"].name + "' = '*'"
+                        + " AND '" + fields["login"].name + "' = '*'"
+                        + " AND '" + fields["mail"].name + "' = '*'",
                         container
                     );
                 };
                 // преобразуем массив пользователей ldap в объект
                 for (var i = 0, iLen = items.length; !error && i < iLen; i++) {
                     item = items[i];// получаем очередной элимент
-                    user = app.fun.item2user(item, fields, format);
+                    user = app.fun.item2user(item, fields);
                     if (user.login) {// если у пользователя есть логин
                         login = user.login.toLowerCase();
                         users[login] = user;
@@ -482,7 +536,7 @@ var readmine = new App({
              * @param {string} [filters] - Дополнительный фильтр в формате id:value;id:value с шаблонизацией.
              * @returns {number} Количество изменённых задач.
              */
-            
+
             "issues.change": function (query, fields, filters) {
                 var key, value, filter, ids, keys, data, unit, flag, item, items,
                     count = 0, error = 0;
@@ -576,7 +630,7 @@ var readmine = new App({
                             };
                             // проверяем значение на соответствие фильтру
                             if (flag) {// если есть что проверять
-                                if(app.lib.validate(filter, "string")){// если в фильтре строка
+                                if (app.lib.validate(filter, "string")) {// если в фильтре строка
                                     filter = app.lib.template(filter, item);
                                 };
                                 flag = !app.lib.compare(value, filter);
@@ -596,7 +650,7 @@ var readmine = new App({
                         unit = null;// сбрасываем значение
                         for (var id in fields) {// пробегаемся по полям
                             value = fields[id];// получаем очередное значение
-                            if(app.lib.validate(value, "string")){// если в фильтре строка
+                            if (app.lib.validate(value, "string")) {// если в фильтре строка
                                 value = app.lib.template(value, item);
                             };
                             id = ids[id] ? ids[id] : id;
