@@ -362,9 +362,6 @@ var readmine = new App({
                     case "clear" == name.toLowerCase():// очистка
                         // очищаем значение
                         value = data ? app.lib.trim("" + data) : "";
-                        if (value.charAt(0) == value.charAt(0).toLowerCase()) {
-                            value = value.charAt(0).toUpperCase() + value.substr(1);
-                        };
                         key = ".";// заканчиваетс€ на точку
                         if (value.indexOf(key) == value.length - key.length) {
                             value = value.substr(0, value.length - key.length);
@@ -374,6 +371,9 @@ var readmine = new App({
                         key = "RE:";// признак ответа
                         if (!value.indexOf(key)) value = value.substr(key.length);
                         value = app.lib.trim(value);
+                        if (value.charAt(0) == value.charAt(0).toLowerCase()) {
+                            value = value.charAt(0).toUpperCase() + value.substr(1);
+                        };
                         // возвращаем результат
                         return value;
                         break;
@@ -419,7 +419,7 @@ var readmine = new App({
                                     flag = false;// найдено значение
                                     for (var j = 0, jLen = unit.length; !flag && j < jLen; j++) {
                                         flag = key == unit[j].id;// найдено значение
-                                        if (flag) unit = unit.value;
+                                        if (flag) unit = unit[j].value;
                                     };
                                 };
                             } else {// есди это обычное поле
@@ -545,7 +545,7 @@ var readmine = new App({
 
             "issues.change": function (query, fields, filters) {
                 var key, value, filter, ids, keys, data, unit, flag, item, items,
-                    count = 0, error = 0;
+                    watcher, watchers, index, count = 0, error = 0;
 
                 // создаЄм необходимые объекты
                 ids = {// преобразование идентификаторов
@@ -606,6 +606,7 @@ var readmine = new App({
                 // выполн€ем действие над задачами
                 for (var i = 0, iLen = items.length; !error && i < iLen; i++) {
                     item = items[i];// получаем очередной элимент
+                    // добавл€ем унифицированные ключи
                     for (var key in item) {// пробигаемс€ по задаче
                         unit = item[key];// запоминаем значение
                         key = keys[key] ? keys[key] : null;
@@ -654,22 +655,69 @@ var readmine = new App({
                     // готовим данные дл€ обновлени€
                     if (flag) {// если нужно подготовить данные
                         unit = null;// сбрасываем значение
+                        index = 0;// счЄтчик колличества полей
                         for (var id in fields) {// пробегаемс€ по пол€м
+                            if (!unit) unit = {};// создаЄм объект дл€ данных
+                            // формируем значение
                             value = fields[id];// получаем очередное значение
                             if (app.lib.validate(value, "string")) {// если в фильтре строка
                                 value = app.lib.template(value, item, app.fun.filter);
                             };
+                            // унифицируем идентификатор
                             id = ids[id] ? ids[id] : id;
-                            if (!unit) unit = {};// создаЄм объект дл€ данных
-                            // присваиваем значени€
-                            if (!isNaN(id)) {// если дополнительное поле
-                                if (!unit.custom_fields) unit.custom_fields = [];
-                                unit.custom_fields.push({ id: id, value: value });
-                            } else unit[id] = value;
+                            // обрабатываем специализированные пол€
+                            switch (id) {// поддерживаемые пол€
+                                case "watcher":// наблюдатель
+                                    // провер€ем значение
+                                    if (value) {// если требуютс€ изменени€ 
+                                        if (!isNaN(value)) {// если проверка пройдена
+                                            value = Number(value);
+                                        } else value = false;
+                                    };
+                                    // получаем список наблюдателей
+                                    if (value) {// если требуютс€ изменени€ 
+                                        data = { include: "watchers" };// данные дл€ запроса
+                                        data = app.api("get", "issues/" + item.id, data);
+                                        if (data.issue && data.issue.watchers) {// если наблюдатели получены
+                                            watchers = data.issue.watchers;// массив наблюдателей
+                                        } else value = false;
+                                    };
+                                    // ищем наблюдател€ в списке
+                                    if (value) {// если требуютс€ изменени€ 
+                                        watcher = null;// сбрасываем значение
+                                        for (var j = 0, jLen = watchers.length; !watcher && j < jLen; j++) {
+                                            watcher = watchers[j];// получаем очередной элимент
+                                            if (Math.abs(value) != watcher.id) watcher = null;
+                                        };
+                                    };
+                                    // добавл€ем или удал€ем наблюдател€
+                                    if (value) {// если требуютс€ изменени€ 
+                                        if (value > 0 && !watcher) {// если нужно добавить
+                                            data = { user_id: value };// данные
+                                            data = { watcher: data };// данные дл€ запроса
+                                            data = app.api("post", "issues/" + item.id + "/watchers", data);
+                                        };
+                                        if (value < 0 && watcher) {// если нужно удалить
+                                            value = Math.abs(value);
+                                            data = app.api("delete", "issues/" + item.id + "/watchers/" + value);
+                                        };
+                                    };
+                                    // завершаем обработку
+                                    id = null;
+                                    break;
+                            };
+                            // присваиваем значение
+                            if (id) {// если идентификатор не сброшен
+                                if (!isNaN(id)) {// если дополнительное поле
+                                    if (!unit.custom_fields) unit.custom_fields = [];
+                                    unit.custom_fields.push({ id: id, value: value });
+                                } else unit[id] = value;
+                                index++;
+                            };
                         };
                     };
                     // обновл€ем данные в за€вке
-                    if (flag) {// если необходимо обновить данные
+                    if (flag && index) {// если необходимо обновить данные
                         data = { issue: unit };// данные дл€ запроса
                         data = app.api("put", "issues/" + item.id, data);
                         if (data.issue) count++;// увеличиваем счЄтчик
