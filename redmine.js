@@ -1,4 +1,4 @@
-/* 0.1.1d взаимодействие с redmine по средствам api
+/* 0.1.2 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <url> <key> <method> [... <param>]
 cscript redmine.min.js <url> <key> users.sync <fields> [<container>] [<auth>]
@@ -46,7 +46,7 @@ var readmine = new App({
                 switch (true) {// поддерживаемые преобразования
                     case "true" == input: value = true; break;
                     case "false" == input: value = false; break;
-                    case !isNaN(input): value = Number(input); break;
+                    case !!input && !isNaN(input): value = Number(input); break;
                     case "--" == input.charAt(4) + input.charAt(7) &&
                         "::" == input.charAt(13) + input.charAt(16) &&
                         "TZ" == input.charAt(10) + input.charAt(19):
@@ -261,7 +261,7 @@ var readmine = new App({
              * @returns {object} Объект пользователя.
              */
 
-            item2user: function (item, fields) {// конвертируем элимент в пользователя
+            item2user: function (item, fields) {
                 var value, flag, user = {}, error = 0;
 
                 // проверяем наличее элимента с данными
@@ -284,7 +284,7 @@ var readmine = new App({
                 if (!error) {// если нету ошибок
                     for (var id in fields) {// пробигаемся по соответствию
                         value = fields[id];// получаем очередное значение
-                        if (app.lib.validate(value, "string")) {// если в фильтре строка
+                        if (value) {// если в фильтре есть шаблон
                             value = app.lib.template(value, function (keys) {
                                 var unit, flag, key;
 
@@ -306,6 +306,7 @@ var readmine = new App({
                             }, app.fun.filter);
                         };
                         // присваиваем значения
+                        value = app.fun.str2val(value);
                         if (!isNaN(id)) {// если дополнительное поле
                             if (!user.custom_fields) user.custom_fields = [];
                             user.custom_fields.push({ id: id, value: value });
@@ -317,6 +318,55 @@ var readmine = new App({
             },
 
             /**
+             * Получает аттрибут по по значению заданного типа.
+             * @param {string} type - Тип получаемого аттрибута.
+             * @param {string} value - Значение для получаемого аттрибута.
+             * @returns {string} Запрошенный аттрибут или пустая строка.
+             */
+
+            getAttribute: function (type, value) {
+                var relation, attribute = "";
+
+                // создаём необходимые объекты
+                relation = {// связь идетификаторов
+                    project: ["project_id"],
+                    tracker: ["tracker_id"],
+                    status: ["status_id"],
+                    priority: ["priority_id"],
+                    author: ["author_id"],
+                    assigned: ["assigned_to_id", "assigned_to"],
+                    category: ["category_id"],
+                    start: ["start_date"],
+                    due: ["due_date"],
+                    done: ["done_ratio"],
+                    private: ["is_private"],
+                    estimated: ["estimated_hours"],
+                    version: ["fixed_version_id"],
+                    parent: ["parent_issue_id"],
+                    created: ["created_on"],
+                    updated: ["updated_on"],
+                    closed: ["closed_on"]
+                };
+                // вычисляем аттрибут
+                switch (type) {// поддерживаемые типы
+                    case "custom":// пользовательский
+                        for (var key in relation) {// пробигаемся по связям
+                            for (var i = 0, iLen = relation[key].length; i < iLen; i++) {
+                                if (value == relation[key][i]) attribute = key;
+                            };
+                        };
+                        break;
+                    case "original":// оригинальный
+                        for (var key in relation) {// пробигаемся по связям
+                            if (value == key) attribute = relation[key][0];
+                        };
+                        break;
+                };
+                // возвращаем результат
+                return attribute;
+            },
+
+            /**
              * Фильтрует переданные данные.
              * @param {string} name - Имя фильтра для фильтрации.
              * @param {object} data - Данные для фильтрации.
@@ -324,12 +374,15 @@ var readmine = new App({
              */
 
             filter: function (name, data) {
-                var value, key, keys, length, unit, flag, list;
+                var id, uid, value, attribute, key, keys,
+                    length, content, unit, flag, list;
 
                 name = name ? "" + name : "";
                 value = name.split("][").join(app.val.delimId);
                 value = value.split("[").join(app.val.delimId);
                 value = value.split("]").join("");
+                value = value.split('"').join("");
+                value = value.split("'").join("");
                 keys = value.split(app.val.delimId);
                 switch (true) {// поддерживаемые форматы
                     case "phone" == name.toLowerCase():// телефонный номер
@@ -359,7 +412,7 @@ var readmine = new App({
                         // возвращаем результат
                         return value;
                         break;
-                    case "clear" == name.toLowerCase():// очистка
+                    case "normal" == name.toLowerCase():// нормализация
                         // очищаем значение
                         value = data ? app.lib.trim("" + data) : "";
                         key = ".";// заканчивается на точку
@@ -385,24 +438,32 @@ var readmine = new App({
                         // возвращаем результат
                         return value;
                         break;
+                    case "set" == name.toLowerCase():// проверка значения
+                        // очищаем значение
+                        value = data ? app.lib.trim("" + data) : "";
+                        // форматируем значение
+                        value = (flag = value) ? "true" : null;
+                        // возвращаем результат
+                        if (flag) return value;
+                        break;
                     case "user" == keys[0].toLowerCase():// пользователь
+                        if (!unit) unit = { include: ["groups"].join(",") };
                     case "issue" == keys[0].toLowerCase():// задача
+                        if (!unit) unit = { include: ["journals", "watchers"].join(",") };
                     case "project" == keys[0].toLowerCase():// проект
+                        if (!unit) unit = { include: ["trackers"].join(",") };
+                        // определяем идентификатор элимента
+                        if (data && data.id) id = data.id;
+                        else if (!isNaN(data)) id = data;
+                        else id = null;
                         // получаем элимент данных
-                        if (data && data.id) {// если объект
+                        if (id) {// если есть идентификатор
                             key = keys.shift().toLowerCase();
-                            value = key + "s/" + data.id;
-                            data = app.api("get", value);
-                            data = data[key] ? data[key] : null;
-                        } else if (!isNaN(data)) {// если число
-                            key = keys.shift().toLowerCase();
-                            value = key + "s/" + Number(data);
-                            data = app.api("get", value);
+                            data = app.api("get", key + "s/" + id, unit);
                             data = data[key] ? data[key] : null;
                         } else if (data) {// если не пустое значение
                             key = keys.shift().toLowerCase() + "s";
-                            value = data;// строка для поиска
-                            data = { name: value };// данные для запроса
+                            data = { name: data };// данные для запроса
                             data = app.api("get", key, data);
                             data = data[key] ? data[key][0] : null;
                         } else data = null;
@@ -430,6 +491,38 @@ var readmine = new App({
                         // возвращаем результат
                         if (flag) return unit;
                         break;
+                    case "journal" == keys[0].toLowerCase():// журнал
+                        // формируем служебные идентификаторы
+                        id = "details";// идентификатор
+                        key = keys.shift().toLowerCase() + "s";
+                        attribute = keys.shift();// аттрибут для поиска значения
+                        attribute = app.fun.getAttribute("original", attribute) || attribute;
+                        // выполняем поиск соответствий
+                        if (data && data[key]) {// если есть нужные данные
+                            for (var i = 0, iLen = data[key].length; i < iLen; i++) {
+                                if (data[key][i][id]) {// если есть нужные данные
+                                    for (var j = 0, jLen = data[key][i][id].length; j < jLen; j++) {
+                                        unit = data[key][i][id][j];// получаем очередной элимент
+                                        value = app.fun.str2val(keys[0] || "");
+                                        content = unit.new_value || "";// новое полное значение
+                                        // выполняем проверку на соответствие
+                                        if (app.lib.validate(value, "boolean")) content = content ? true : false;
+                                        flag = !app.lib.compare(value, content);
+                                        if (!flag && isNaN(value)) {// если не прошёл проверку на полное соответствие
+                                            content = "" + content;// приводим к единому типу
+                                            value = "" + value;// приводим к единому типу
+                                            value = value.toLowerCase();// переводим в нижний регистр
+                                            flag = ~content.toLowerCase().indexOf(value);
+                                        };
+                                        flag = flag && (!attribute || attribute == unit.name);
+                                        if (flag) uid = data[key][i].user.id;
+                                    };
+                                };
+                            };
+                        };
+                        // возвращаем результат
+                        if (uid) return uid;
+                        break;
                 };
             }
         },
@@ -451,8 +544,8 @@ var readmine = new App({
                 if (!error) {// если нету ошибок
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : {};
                     for (var id in fields) {// пробегаемся по списку полученных полей
-                        value = fields[id].split('"').join("");
-                        fields[id] = app.fun.str2val(value);
+                        value = fields[id];// получаем очередное значение
+                        if (value) fields[id] = value.split('"').join("");
                     };
                     if (// множественное условие
                         fields.login && fields.firstname
@@ -466,18 +559,20 @@ var readmine = new App({
                     items = app.wsh.getLDAP(value, container);
                 };
                 // преобразуем массив пользователей ldap в объект
-                for (var i = 0, iLen = items.length; !error && i < iLen; i++) {
-                    item = items[i];// получаем очередной элимент
-                    user = app.fun.item2user(item, fields);
-                    if (// множественное условие
-                        user.login && user.firstname && user.lastname
-                    ) {// если заполнены обязательные поля
-                        if (!user.mail) {// если у пользователя нет почты
-                            user.status = app.val.stLocked;
-                            delete user.mail;
+                if (!error) {// если нету ошибок
+                    for (var i = 0, iLen = items.length; i < iLen; i++) {
+                        item = items[i];// получаем очередной элимент
+                        user = app.fun.item2user(item, fields);
+                        if (// множественное условие
+                            user.login && user.firstname && user.lastname
+                        ) {// если заполнены обязательные поля
+                            if (!user.mail) {// если у пользователя нет почты
+                                user.status = app.val.stLocked;
+                                delete user.mail;
+                            };
+                            login = user.login.toLowerCase();
+                            users[login] = user;
                         };
-                        login = user.login.toLowerCase();
-                        users[login] = user;
                     };
                 };
                 // получаем список пользователей в приложении
@@ -501,21 +596,23 @@ var readmine = new App({
                     } else error = 2;
                 };
                 // обновляем данные у пользователей приложения
-                for (var i = 0, iLen = items.length; !error && i < iLen; i++) {
-                    item = items[i];// получаем очередной элимент
-                    login = item.login.toLowerCase();
-                    user = users[login];// получаем пользователя
-                    if (user) {// если пользователь есть в ldap
-                        unit = app.lib.difference(user, item, function (one, two) {
-                            return one.id == two.id && one.value != two.value;
-                        });
-                        if (unit) {// если необходимо обновить данные
-                            if (auth) unit.auth_source_id = auth;
-                            data = { user: unit };// данные для запроса
-                            data = app.api("put", "users/" + item.id, data);
-                            if (data.user) count++;// увеличиваем счётчик
+                if (!error) {// если нету ошибок
+                    for (var i = 0, iLen = items.length; i < iLen; i++) {
+                        item = items[i];// получаем очередной элимент
+                        login = item.login.toLowerCase();
+                        user = users[login];// получаем пользователя
+                        if (user) {// если пользователь есть в ldap
+                            unit = app.lib.difference(user, item, function (one, two) {
+                                return one.id == two.id && one.value != two.value;
+                            });
+                            if (unit) {// если необходимо обновить данные
+                                if (auth) unit.auth_source_id = auth;
+                                data = { user: unit };// данные для запроса
+                                data = app.api("put", "users/" + item.id, data);
+                                if (data.user) count++;// увеличиваем счётчик
+                            };
+                            delete users[login];
                         };
-                        delete users[login];
                     };
                 };
                 // регистрируем новых пользователей
@@ -544,43 +641,16 @@ var readmine = new App({
              */
 
             "issues.change": function (query, fields, filters) {
-                var key, value, filter, ids, keys, data, unit, flag, item, items,
+                var key, value, filter, data, unit, flag, item, items,
                     watcher, watchers, index, count = 0, error = 0;
 
-                // создаём необходимые объекты
-                ids = {// преобразование идентификаторов
-                    project: "project_id",
-                    tracker: "tracker_id",
-                    status: "status_id",
-                    priority: "priority_id",
-                    author: "author_id",
-                    assigned: "assigned_to_id",
-                    category: "category_id",
-                    start: "start_date",
-                    due: "due_date",
-                    done: "done_ratio",
-                    private: "is_private",
-                    estimated: "estimated_hours",
-                    version: "fixed_version_id",
-                    parent: "parent_issue_id"
-                };
-                keys = {// преобразование ключей
-                    start: "start_date",
-                    due: "due_date",
-                    done: "done_ratio",
-                    private: "is_private",
-                    estimated: "estimated_hours",
-                    created: "created_on",
-                    updated: "updated_on",
-                    closed: "closed_on"
-                };
                 // получаем значения для изменяемых полей
                 if (!error) {// если нету ошибок
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : null;
                     if (fields) {// если удалось получить список полей и значения для их изменения
                         for (var id in fields) {// пробегаемся по списку полученных полей
-                            value = fields[id].split('"').join("");
-                            fields[id] = app.fun.str2val(value);
+                            value = fields[id];// получаем очередное значение
+                            if (value) fields[id] = value.split('"').join("");
                         };
                     } else error = 1;
                 };
@@ -589,8 +659,8 @@ var readmine = new App({
                     filters = filters ? app.lib.str2obj(filters, false, app.val.delimKey, app.val.delimVal) : null;
                     if (filters) {// если удалось получить список фильтров и значения для них
                         for (var id in filters) {// пробегаемся по списку полученных фильтров
-                            value = filters[id].split('"').join("");
-                            filters[id] = app.fun.str2val(value);
+                            value = filters[id];// получаем очередное значение
+                            if (value) filters[id] = value.split('"').join("");
                         };
                     };
                 };
@@ -604,123 +674,126 @@ var readmine = new App({
                     };
                 };
                 // выполняем действие над задачами
-                for (var i = 0, iLen = items.length; !error && i < iLen; i++) {
-                    item = items[i];// получаем очередной элимент
-                    // добавляем унифицированные ключи
-                    for (var key in item) {// пробигаемся по задаче
-                        unit = item[key];// запоминаем значение
-                        key = keys[key] ? keys[key] : null;
-                        if (key) item[key] = unit;
-                    };
-                    // проверяем задачу на соответствие фильтрам
-                    flag = true;// задача удовлетворяет фильтрам
-                    if (filters) {// если нужно применить фильтры к задаче
-                        for (var id in filters) {// пробегаемся по полям
-                            filter = filters[id];// получаем очередное значение
-                            // получаем значение из конечного поля
-                            if (!isNaN(id)) {// если дополнительное поле
-                                flag = false;// задача не удовлетворяет фильтру
-                                list = item.custom_fields ? item.custom_fields : [];
-                                for (var j = 0, jLen = list.length; !flag && j < jLen; j++) {
-                                    unit = list[j];// получаем значение очередного поля
-                                    flag = unit.id == Number(id);// найдено значение
-                                    if (flag) value = unit.value;
-                                };
-                            } else {// если не дополнительное поле
-                                value = data = item;// берём элимент для анализа
-                                list = id.split(app.val.delimId);// получаем цепочку ключей
-                                for (var j = 0, jLen = list.length; flag && j < jLen; j++) {
-                                    key = list[j];// получаем очередной ключ
-                                    flag = key in data;// найдено значение
-                                    if (flag) value = data = data[key];
-                                };
-                            };
-                            // проверяем значение на соответствие фильтру
-                            if (flag) {// если есть что проверять
-                                if (app.lib.validate(filter, "string")) {// если в фильтре строка
-                                    filter = app.lib.template(filter, item, app.fun.filter);
-                                };
-                                flag = !app.lib.compare(value, filter);
-                                if (!flag) {// если не прошёл проверку на полное соответствие
-                                    filter = "" + filter;// приводим к единому типу
-                                    value = "" + value;// приводим к единому типу
-                                    filter = filter.toLowerCase();// переводим в нижний регистр
-                                    flag = ~value.toLowerCase().indexOf(filter);
-                                };
-                            };
-                            // прерываем если не прошли проверку
-                            if (!flag) break;
+                if (!error) {// если нету ошибок
+                    for (var i = 0, iLen = items.length; i < iLen; i++) {
+                        item = items[i];// получаем очередной элимент
+                        // добавляем пользовательские ключи
+                        item["true"] = true;// для проверки наличия значения
+                        item["false"] = "";// для проверки отсутствия значения
+                        for (var key in item) {// пробигаемся по задаче
+                            unit = item[key];// запоминаем значение
+                            key = app.fun.getAttribute("custom", key);
+                            if (key) item[key] = unit;
                         };
-                    };
-                    // готовим данные для обновления
-                    if (flag) {// если нужно подготовить данные
-                        unit = null;// сбрасываем значение
-                        index = 0;// счётчик колличества полей
-                        for (var id in fields) {// пробегаемся по полям
-                            if (!unit) unit = {};// создаём объект для данных
-                            // формируем значение
-                            value = fields[id];// получаем очередное значение
-                            if (app.lib.validate(value, "string")) {// если в фильтре строка
-                                value = app.lib.template(value, item, app.fun.filter);
-                            };
-                            // унифицируем идентификатор
-                            id = ids[id] ? ids[id] : id;
-                            // обрабатываем специализированные поля
-                            switch (id) {// поддерживаемые поля
-                                case "watcher":// наблюдатель
-                                    // проверяем значение
-                                    if (value) {// если требуются изменения 
-                                        if (!isNaN(value)) {// если проверка пройдена
-                                            value = Number(value);
-                                        } else value = false;
-                                    };
-                                    // получаем список наблюдателей
-                                    if (value) {// если требуются изменения 
-                                        data = { include: "watchers" };// данные для запроса
-                                        data = app.api("get", "issues/" + item.id, data);
-                                        if (data.issue && data.issue.watchers) {// если наблюдатели получены
-                                            watchers = data.issue.watchers;// массив наблюдателей
-                                        } else value = false;
-                                    };
-                                    // ищем наблюдателя в списке
-                                    if (value) {// если требуются изменения 
-                                        watcher = null;// сбрасываем значение
-                                        for (var j = 0, jLen = watchers.length; !watcher && j < jLen; j++) {
-                                            watcher = watchers[j];// получаем очередной элимент
-                                            if (Math.abs(value) != watcher.id) watcher = null;
-                                        };
-                                    };
-                                    // добавляем или удаляем наблюдателя
-                                    if (value) {// если требуются изменения 
-                                        if (value > 0 && !watcher) {// если нужно добавить
-                                            data = { user_id: value };// данные
-                                            data = { watcher: data };// данные для запроса
-                                            data = app.api("post", "issues/" + item.id + "/watchers", data);
-                                        };
-                                        if (value < 0 && watcher) {// если нужно удалить
-                                            value = Math.abs(value);
-                                            data = app.api("delete", "issues/" + item.id + "/watchers/" + value);
-                                        };
-                                    };
-                                    // завершаем обработку
-                                    id = null;
-                                    break;
-                            };
-                            // присваиваем значение
-                            if (id) {// если идентификатор не сброшен
+                        // проверяем задачу на соответствие фильтрам
+                        flag = true;// задача удовлетворяет фильтрам
+                        if (filters) {// если нужно применить фильтры к задаче
+                            for (var id in filters) {// пробегаемся по полям
+                                filter = filters[id];// получаем очередное значение
+                                // получаем значение из конечного поля
                                 if (!isNaN(id)) {// если дополнительное поле
-                                    if (!unit.custom_fields) unit.custom_fields = [];
-                                    unit.custom_fields.push({ id: id, value: value });
-                                } else unit[id] = value;
-                                index++;
+                                    flag = false;// задача не удовлетворяет фильтру
+                                    list = item.custom_fields ? item.custom_fields : [];
+                                    for (var j = 0, jLen = list.length; !flag && j < jLen; j++) {
+                                        unit = list[j];// получаем значение очередного поля
+                                        flag = unit.id == Number(id);// найдено значение
+                                        if (flag) value = unit.value;
+                                    };
+                                } else {// если не дополнительное поле
+                                    value = data = item;// берём элимент для анализа
+                                    list = id.split(app.val.delimId);// получаем цепочку ключей
+                                    for (var j = 0, jLen = list.length; flag && j < jLen; j++) {
+                                        key = list[j];// получаем очередной ключ
+                                        flag = key in data;// найдено значение
+                                        if (flag) value = data = data[key];
+                                    };
+                                };
+                                // проверяем значение на соответствие фильтру
+                                if (flag) {// если есть что проверять
+                                    if (filter) filter = app.lib.template(filter, item, app.fun.filter);
+                                    filter = app.fun.str2val(filter);// преобразовывает строку в значение
+                                    if (app.lib.validate(filter, "boolean")) value = value ? true : false;
+                                    flag = !app.lib.compare(filter, value);
+                                    if (!flag && isNaN(filter)) {// если не прошёл проверку на полное соответствие
+                                        filter = "" + filter;// приводим к единому типу
+                                        value = "" + value;// приводим к единому типу
+                                        filter = filter.toLowerCase();// переводим в нижний регистр
+                                        flag = ~value.toLowerCase().indexOf(filter);
+                                    };
+                                };
+                                // прерываем если не прошли проверку
+                                if (!flag) break;
                             };
                         };
-                    };
-                    // обновляем данные в заявке
-                    if (flag && index) {// если необходимо обновить данные
-                        data = { issue: unit };// данные для запроса
-                        data = app.api("put", "issues/" + item.id, data);
-                        if (data.issue) count++;// увеличиваем счётчик
+                        // готовим данные для обновления
+                        if (flag) {// если нужно подготовить данные
+                            unit = null;// сбрасываем значение
+                            index = 0;// счётчик колличества полей
+                            for (var id in fields) {// пробегаемся по полям
+                                if (!unit) unit = {};// создаём объект для данных
+                                // формируем значение
+                                value = fields[id];// получаем очередное значение
+                                if (value) value = app.lib.template(value, item, app.fun.filter);
+                                value = app.fun.str2val(value);
+                                // унифицируем идентификатор
+                                id = app.fun.getAttribute("original", id) || id;
+                                // обрабатываем специализированные поля
+                                switch (id) {// поддерживаемые поля
+                                    case "watcher":// наблюдатель
+                                        // проверяем значение
+                                        if (value) {// если требуются изменения 
+                                            if (!isNaN(value)) {// если проверка пройдена
+                                                value = Number(value);
+                                            } else value = false;
+                                        };
+                                        // получаем список наблюдателей
+                                        if (value) {// если требуются изменения 
+                                            data = { include: "watchers" };// данные для запроса
+                                            data = app.api("get", "issues/" + item.id, data);
+                                            if (data.issue && data.issue.watchers) {// если наблюдатели получены
+                                                watchers = data.issue.watchers;// массив наблюдателей
+                                            } else value = false;
+                                        };
+                                        // ищем наблюдателя в списке
+                                        if (value) {// если требуются изменения 
+                                            watcher = null;// сбрасываем значение
+                                            for (var j = 0, jLen = watchers.length; !watcher && j < jLen; j++) {
+                                                watcher = watchers[j];// получаем очередной элимент
+                                                if (Math.abs(value) != watcher.id) watcher = null;
+                                            };
+                                        };
+                                        // добавляем или удаляем наблюдателя
+                                        if (value) {// если требуются изменения 
+                                            if (value > 0 && !watcher) {// если нужно добавить
+                                                data = { user_id: value };// данные
+                                                data = { watcher: data };// данные для запроса
+                                                data = app.api("post", "issues/" + item.id + "/watchers", data);
+                                            };
+                                            if (value < 0 && watcher) {// если нужно удалить
+                                                value = Math.abs(value);
+                                                data = app.api("delete", "issues/" + item.id + "/watchers/" + value);
+                                            };
+                                        };
+                                        // завершаем обработку
+                                        id = null;
+                                        break;
+                                };
+                                // присваиваем значение
+                                if (id) {// если идентификатор не сброшен
+                                    if (!isNaN(id)) {// если дополнительное поле
+                                        if (!unit.custom_fields) unit.custom_fields = [];
+                                        unit.custom_fields.push({ id: id, value: value });
+                                    } else unit[id] = value;
+                                    index++;
+                                };
+                            };
+                        };
+                        // обновляем данные в заявке
+                        if (flag && index) {// если необходимо обновить данные
+                            data = { issue: unit };// данные для запроса
+                            data = app.api("put", "issues/" + item.id, data);
+                            if (data.issue) count++;// увеличиваем счётчик
+                        };
                     };
                 };
                 // возвращаем результат
