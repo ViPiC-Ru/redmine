@@ -1,32 +1,34 @@
-/* 0.1.3 взаимодействие с redmine по средствам api
+/* 0.2.0 взаимодействие с redmine по средствам api
 
-cscript redmine.min.js <url> <key> <method> [... <param>]
-cscript redmine.min.js <url> <key> users.sync <fields> [<container>] [<auth>]
-cscript redmine.min.js <url> <key> issues.change [<query>] <fields> [<filters>]
+cscript redmine.min.js <instance> <method> [... <param>]
+cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
+cscript redmine.min.js <instance> issues.change [<query>] [<filters>] <fields>
 
-<url>               - базовый url адрес для запросов к api
-<key>               - ключ доступа к api для взаимодействия
-<method>            - собственный метод который нужно выполнить
-    users.sync      - синхранизация пользователей из ldap
-        <fields>    - поля и их ldap значения в формате id:value;id:value с шаблонизацией
-        <container> - контейнер пользователей в ldap
-        <auth>      - id режима аутентификации в приложении
-    issues.change   - изменение задач в сохранённом запросе
-        <query>     - id сохранённого запроса для всех проектов
-        <fields>    - поля и их значения в формате id:value;id:value с шаблонизацией
-        <filters>   - фильтр в формате id:value;id:value с шаблонизацией
+<instance>          - Адрес для подключения к Redmine в формате url (с указанием логина, пароля или ключа во фрагменте).
+<method>            - Собственный метод, который нужно выполнить.
+    users.sync      - Синхронизация пользователей из источника данных.
+        <source>    - Адрес для подключения к Active Directory в формате url (поддерживается протокол ldap).
+        <fields>    - Поля и их значения в источнике в формате ID:value;id:value с шаблонизацией.
+        <auth>      - Идентификатор режима аутентификации в Redmine.
+    issues.change   - Изменение задач в Redmine.
+        <query>     - Идентификатор сохранённого запроса для всех проектов.
+        <filters>   - Фильтр в формате id:value;id:value с шаблонизацией.
+        <fields>    - Поля и их значения в формате id:value;id:value с шаблонизацией.
 
 */
 
 var readmine = new App({
-    apiKey: null,       // ключ доступа к api приложения
-    apiUrl: null,       // базовый url адрес для запросов к api
-    delimVal: ":",      // разделитель значения от ключа
-    delimKey: ";",      // разделитель ключей между собой
-    delimId: ".",       // разделитель идентификаторов в ключе
-    stActive: 1,        // статус активного пользователя
-    stRegistered: 2,    // статус зарегистрированного пользователя
-    stLocked: 3         // статус заблокированного пользователя
+    apiReadmineUrl: null,           // базовый url для запросов к api readmine
+    apiReadmineKey: null,           // ключ доступа к api readmine
+    apiReadmineUser: null,          // логин для доступа к api readmine
+    apiReadminePassword: null,      // пароль для доступа к api readmine
+    apiADPath: null,                // базовый путь для запросов к active directory
+    userActive: 1,                  // статус активного пользователя
+    userRegistered: 2,              // статус зарегистрированного пользователя
+    userLocked: 3,                  // статус заблокированного пользователя
+    delimVal: ":",                  // разделитель значения от ключа
+    delimKey: ";",                  // разделитель ключей между собой
+    delimId: "."                    // разделитель идентификаторов в ключе
 });
 
 // подключаем зависимые свойства приложения
@@ -278,7 +280,7 @@ var readmine = new App({
                 if (!error) {// если нету ошибок
                     value = item.get("userAccountControl");
                     flag = value & 2;// пользователь заблокирован
-                    user.status = !flag ? app.val.stActive : app.val.stLocked;
+                    user.status = !flag ? app.val.userActive : app.val.userLocked;
                 };
                 // получаем значение для полей
                 if (!error) {// если нету ошибок
@@ -325,40 +327,32 @@ var readmine = new App({
              */
 
             getAttribute: function (type, value) {
-                var relation, attribute = "";
+                var map, attribute = "";
 
                 // создаём необходимые объекты
-                relation = {// связь идетификаторов
-                    project: ["project_id"],
-                    tracker: ["tracker_id"],
-                    status: ["status_id"],
-                    priority: ["priority_id"],
-                    author: ["author_id"],
-                    assigned: ["assigned_to_id", "assigned_to"],
-                    category: ["category_id"],
-                    start: ["start_date"],
-                    due: ["due_date"],
-                    done: ["done_ratio"],
-                    private: ["is_private"],
-                    estimated: ["estimated_hours"],
-                    version: ["fixed_version_id"],
-                    parent: ["parent_issue_id"],
-                    created: ["created_on"],
-                    updated: ["updated_on"],
-                    closed: ["closed_on"]
+                map = {// связь идетификаторов
+                    "project.id": ["project_id"],
+                    "tracker.id": ["tracker_id"],
+                    "status.id": ["status_id"],
+                    "priority.id": ["priority_id"],
+                    "author.id": ["author_id"],
+                    "assigned_to.id": ["assigned_to_id"],
+                    "category.id": ["category_id"],
+                    "fixed_version.id": ["fixed_version_id"],
+                    "parent.id": ["parent_issue_id"]
                 };
                 // вычисляем аттрибут
                 switch (type) {// поддерживаемые типы
                     case "custom":// пользовательский
-                        for (var key in relation) {// пробигаемся по связям
-                            for (var i = 0, iLen = relation[key].length; i < iLen; i++) {
-                                if (value == relation[key][i]) attribute = key;
+                        for (var key in map) {// пробигаемся по связям
+                            for (var i = 0, iLen = map[key].length; i < iLen; i++) {
+                                if (value == map[key][i]) attribute = key;
                             };
                         };
                         break;
                     case "original":// оригинальный
-                        for (var key in relation) {// пробигаемся по связям
-                            if (value == key) attribute = relation[key][0];
+                        for (var key in map) {// пробигаемся по связям
+                            if (value == key) attribute = map[key][0];
                         };
                         break;
                 };
@@ -459,12 +453,12 @@ var readmine = new App({
                         // получаем элимент данных
                         if (id) {// если есть идентификатор
                             key = keys.shift().toLowerCase();
-                            data = app.api("get", key + "s/" + id, unit);
+                            data = app.api.redmine("get", key + "s/" + id, unit);
                             data = data[key] ? data[key] : null;
                         } else if (data) {// если не пустое значение
                             key = keys.shift().toLowerCase() + "s";
                             data = { name: data };// данные для запроса
-                            data = app.api("get", key, data);
+                            data = app.api.redmine("get", key, data);
                             data = data[key] ? data[key][0] : null;
                         } else data = null;
                         // получаем цепочтку данных по ключам
@@ -524,39 +518,63 @@ var readmine = new App({
                         if (uid) return uid;
                         break;
                 };
+            },
+
+            /**
+             * Исправляет путь от url, добавляя слеш в конце.
+             * @param {string} path - Путь от url для исправления.
+             * @returns {string} Исправленный путь от url.
+             */
+
+            fixUrlPath: function (path) {
+                var end = "/";
+
+                if (path) {// если не пустой путь
+                    if (path.substring(path.length - end.length) == end) {
+                    } else path += end;
+                } else path = end;
+                // возвращаем результат
+                return path;
             }
         },
         method: {// поддерживаемые методы
 
             /**
-             * Синхранизирует пользователей из ldap в приложение.
+             * Синхранизация пользователей из источника данных.
+             * @param {string} source - Параметры для подключения к active directory в формате <url>.
              * @param {string} fields - Поля и их значения в формате id:value;id:value с шаблонизацией.
-             * @param {string} [container] - Контейнер пользователей в ldap.
              * @param {string} [auth] - Режим аутентификации в приложении.
-             * @returns {number} Количество изменённых пользователей.
+             * @returns {number} Номер ошибки или нулевое значение.
              */
 
-            "users.sync": function (fields, container, auth) {
-                var data, list, unit, login, id, value, status, item,
-                    items, user, users = {}, count = 0, error = 0;
+            "users.sync": function (source, fields, auth) {
+                var data, list, unit, primary, id, value, status, item,
+                    items, user, users = {}, error = 0;
 
+                // получаяем данные для взаимодействия с источником
+                if (!error) {// если нету ошибок
+                    source = app.lib.url2obj(source);
+                    if (app.lib.hasValue(["ldap"], source.scheme, false)) {
+                        app.val.apiADPath = source.path || source.domain;
+                    } else error = 7;
+                };
                 // получаем соответствие полей
                 if (!error) {// если нету ошибок
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : {};
                     for (var id in fields) {// пробегаемся по списку полученных полей
                         value = fields[id];// получаем очередное значение
                         if (value) fields[id] = value.split('"').join("");
+                        if (!primary) primary = id;
                     };
                     if (// множественное условие
                         fields.login && fields.firstname
                         && fields.mail && fields.lastname
                     ) {// если заполнены обязательные поля
-                    } else error = 1;
+                    } else error = 8;
                 };
                 // получаем массив пользователей ldap
                 if (!error) {// если нету ошибок
-                    value = "WHERE 'objectClass' = 'user'";
-                    items = app.wsh.ldap(value, container);
+                    items = app.api.ad("WHERE 'objectClass' = 'user'");
                 };
                 // преобразуем массив пользователей ldap в объект
                 if (!error) {// если нету ошибок
@@ -567,21 +585,21 @@ var readmine = new App({
                             user.login && user.firstname && user.lastname
                         ) {// если заполнены обязательные поля
                             if (!user.mail) {// если у пользователя нет почты
-                                user.status = app.val.stLocked;
+                                user.status = app.val.userLocked;
                                 delete user.mail;
                             };
-                            login = user.login.toLowerCase();
-                            users[login] = user;
+                            id = user[primary].toLowerCase();
+                            users[id] = user;
                         };
                     };
                 };
                 // получаем список пользователей в приложении
-                list = [app.val.stActive, app.val.stRegistered, app.val.stLocked];
+                list = [app.val.userActive, app.val.userRegistered, app.val.userLocked];
                 for (var items = [], i = 0, iLen = list.length; !error && i < iLen; i++) {
                     status = list[i];// получаем очередное значение статуса из списка значений
                     for (var data = null; !data || data.total_count > data.offset; data.offset += data.limit) {
                         data = { offset: data ? data.offset : 0, status: status };// данные для запроса
-                        data = app.api("get", "users", data);// запрашиваем данные через api
+                        data = app.api.redmine("get", "users", data);// запрашиваем данные через api
                         if (!data.users) data.users = [];// приводим данные к единому виду
                         for (var j = 0, jLen = data.users.length; j < jLen; j++) {
                             item = data.users[j]// получаем очередной элимент
@@ -593,14 +611,14 @@ var readmine = new App({
                 // проверяем наличее пользователей
                 if (!error) {// если нету ошибок
                     if (items.length) {// если есть пользователи
-                    } else error = 2;
+                    } else error = 9;
                 };
                 // обновляем данные у пользователей приложения
                 if (!error) {// если нету ошибок
                     for (var i = 0, iLen = items.length; i < iLen; i++) {
                         item = items[i];// получаем очередной элимент
-                        login = item.login.toLowerCase();
-                        user = users[login];// получаем пользователя
+                        id = item[primary].toLowerCase();
+                        user = users[id];// получаем пользователя
                         if (user) {// если пользователь есть в ldap
                             unit = app.lib.difference(user, item, function (one, two) {
                                 return one.id == two.id && one.value != two.value;
@@ -608,42 +626,43 @@ var readmine = new App({
                             if (unit) {// если необходимо обновить данные
                                 if (auth) unit.auth_source_id = auth;
                                 data = { user: unit };// данные для запроса
-                                data = app.api("put", "users/" + item.id, data);
-                                if (data.user) count++;// увеличиваем счётчик
+                                data = app.api.redmine("put", "users/" + item.id, data);
                             };
-                            delete users[login];
+                            delete users[id];
                         };
                     };
                 };
                 // регистрируем новых пользователей
                 if (!error) {// если нету ошибок
-                    for (var login in users) {// пробигаемся по пользователям
-                        user = users[login];// получаем пользователя
-                        if (app.val.stActive == user.status) {// если активный пользователь
+                    for (var id in users) {// пробигаемся по пользователям
+                        user = users[id];// получаем пользователя
+                        if (app.val.userActive == user.status) {// если активный пользователь
                             if (auth) user.auth_source_id = auth;
                             data = { user: user };// данные для запроса
-                            data = app.api("post", "users", data);
-                            if (data.user) count++;// увеличиваем счётчик
+                            data = app.api.redmine("post", "users", data);
                         };
-                        delete users[login];
+                        delete users[id];
                     };
                 };
                 // возвращаем результат
-                return count;
+                return error;
             },
 
             /**
              * Изменяет уже существующие задачи в сохранённом запросе.
              * @param {number} [query] - Идентификатор сохранённого запроса для всех проектов.
-             * @param {string} fields - Изменяемые поля и их значения в формате id:value;id:value с шаблонизацией.
              * @param {string} [filters] - Дополнительный фильтр в формате id:value;id:value с шаблонизацией.
-             * @returns {number} Количество изменённых задач.
+             * @param {string} fields - Изменяемые поля и их значения в формате id:value;id:value с шаблонизацией.
+             * @returns {number} Номер ошибки или нулевое значение.
              */
 
-            "issues.change": function (query, fields, filters) {
+            "issues.change": function (query, filters, fields) {
                 var key, value, filter, data, unit, flag, item, items,
-                    watcher, watchers, index, count = 0, error = 0;
+                    watcher, watchers, index, error = 0;
 
+                // корректируем порядок входных параметров
+                if (isNaN(query)) { fields = filters; filters = query; query = null; };
+                if (!fields) { fields = filters; filters = null; };
                 // получаем значения для изменяемых полей
                 if (!error) {// если нету ошибок
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : null;
@@ -652,7 +671,7 @@ var readmine = new App({
                             value = fields[id];// получаем очередное значение
                             if (value) fields[id] = value.split('"').join("");
                         };
-                    } else error = 1;
+                    } else error = 7;
                 };
                 // получаем значения для фильтров
                 if (!error) {// если нету ошибок
@@ -669,7 +688,7 @@ var readmine = new App({
                     for (var items = [], data = null; !data || data.total_count > data.offset; data.offset += data.limit) {
                         data = { offset: data ? data.offset : 0 };// данные для запроса
                         if (query) data.query_id = query;// фильтр по идентификатору запроса
-                        data = app.api("get", "issues", data);// запрашиваем данные через api
+                        data = app.api.redmine("get", "issues", data);// запрашиваем данные через api
                         if (data.issues) items = items.concat(data.issues);
                     };
                 };
@@ -749,7 +768,7 @@ var readmine = new App({
                                         // получаем список наблюдателей
                                         if (value) {// если требуются изменения 
                                             data = { include: "watchers" };// данные для запроса
-                                            data = app.api("get", "issues/" + item.id, data);
+                                            data = app.api.redmine("get", "issues/" + item.id, data);
                                             if (data.issue && data.issue.watchers) {// если наблюдатели получены
                                                 watchers = data.issue.watchers;// массив наблюдателей
                                             } else value = false;
@@ -767,11 +786,11 @@ var readmine = new App({
                                             if (value > 0 && !watcher) {// если нужно добавить
                                                 data = { user_id: value };// данные
                                                 data = { watcher: data };// данные для запроса
-                                                data = app.api("post", "issues/" + item.id + "/watchers", data);
+                                                data = app.api.redmine("post", "issues/" + item.id + "/watchers", data);
                                             };
                                             if (value < 0 && watcher) {// если нужно удалить
                                                 value = Math.abs(value);
-                                                data = app.api("delete", "issues/" + item.id + "/watchers/" + value);
+                                                data = app.api.redmine("delete", "issues/" + item.id + "/watchers/" + value);
                                             };
                                         };
                                         // завершаем обработку
@@ -791,92 +810,112 @@ var readmine = new App({
                         // обновляем данные в заявке
                         if (flag && index) {// если необходимо обновить данные
                             data = { issue: unit };// данные для запроса
-                            data = app.api("put", "issues/" + item.id, data);
-                            if (data.issue) count++;// увеличиваем счётчик
+                            data = app.api.redmine("put", "issues/" + item.id, data);
                         };
                     };
                 };
                 // возвращаем результат
-                return count;
+                return error;
             }
         },
+        api: {// взаимодействие с различными приложениями
 
-        /**
-         * Программный интерфейс взаимодействия с приложением.
-         * @param {string} [method] - Метод http для запроса.
-         * @param {string} request - Адрес uri запроса без расширения.
-         * @param {object} [data] - Данные отправляемые в запросе.
-         * @returns {object} Данные которые вернуло приложение.
-         */
+            /**
+             * Программный интерфейс взаимодействия с redmine.
+             * @param {string} [method] - Метод http для запроса.
+             * @param {string} request - Адрес uri запроса без расширения.
+             * @param {object} [data] - Данные отправляемые в запросе.
+             * @returns {object} Данные которые вернуло api.
+             */
 
-        api: function (method, request, data) {
-            var xhr, url, flag, head, response = {}, error = 0;
+            redmine: function (method, request, data) {
+                var xhr, url, flag, head, response = {}, error = 0;
 
-            // определяем необходимость конвертации данных
-            if (!error) {// если нету ошибок
-                switch (method.toLowerCase()) {// совместимые методы
-                    case "get": flag = false; break;
-                    case "head": flag = false; break;
-                    case "delete": flag = false; break;
-                    default: flag = true;
+                // определяем необходимость конвертации данных
+                if (!error) {// если нету ошибок
+                    switch (method.toLowerCase()) {// совместимые методы
+                        case "get": flag = false; break;
+                        case "head": flag = false; break;
+                        case "delete": flag = false; break;
+                        default: flag = true;
+                    };
                 };
-            };
-            // конвертируем отправляемые данные
-            if (!error && data && flag) {// если нужно выполнить
-                data = app.fun.obj2xml(data);
-                if (data) {// если данные сконвертированы
-                } else error = 1;
-            };
-            // делаем запрос на сервер
-            if (!error) {// если нету ошибок
-                url = app.val.apiUrl + request + ".xml";
-                head = {// заголовки запроса
-                    "Cache-Control": "no-store",
-                    "If-None-Match": "empty"
+                // конвертируем отправляемые данные
+                if (!error && data && flag) {// если нужно выполнить
+                    data = app.fun.obj2xml(data);
+                    if (data) {// если данные сконвертированы
+                    } else error = 1;
                 };
-                if (app.val.apiKey) {// если задан ключ для api
-                    head["X-Redmine-API-Key"] = app.val.apiKey;
+                // делаем запрос на сервер
+                if (!error) {// если нету ошибок
+                    url = app.val.apiReadmineUrl + request + ".xml";
+                    head = {// заголовки запроса
+                        "Cache-Control": "no-store",
+                        "If-None-Match": "empty"
+                    };
+                    if (app.val.apiReadmineKey) head["X-Redmine-API-Key"] = app.val.apiReadmineKey;
+                    xhr = app.lib.xhr(method, url, head, data, false, null, app.val.apiReadmineUser, app.val.apiReadminePassword);
+                    data = xhr.responseXML;
+                    if (app.lib.validate(data, 'xml')) {// если ответ получен
+                    } else error = 2;
                 };
-                xhr = app.lib.sjax(method, url, head, data);
-                data = xhr.responseXML;
-                if (app.lib.validate(data, 'xml')) {// если ответ получен
-                } else error = 2;
-            };
-            // конвертируем полученные данные
-            if (!error) {// если нету ошибок
-                data = app.fun.xml2obj(xhr.responseXML);
-                if (data) {// если данные сконвертированы
-                    response = data;
-                } else error = 3;
-            };
-            // возвращаем результат
-            return response;
+                // конвертируем полученные данные
+                if (!error) {// если нету ошибок
+                    data = app.fun.xml2obj(xhr.responseXML);
+                    if (data) {// если данные сконвертированы
+                        response = data;
+                    } else error = 3;
+                };
+                // возвращаем результат
+                return response;
+            },
+
+            /**
+             * Программный интерфейс взаимодействия с active directory
+             * @param {string} query - Запрос для получения данных.
+             * @returns {array} Данные которые вернуло api.
+             */
+
+            ad: function (query) {
+                var response;
+
+                response = app.wsh.ldap(query, app.val.apiADPath);
+                // возвращаем результат
+                return response;
+            }
         },
         init: function () {// функция инициализации приложения
-            var value, key, flag, method, list = [], count = 0,
-                index = 0, error = 0;
+            var value, instance, method, list = [], index = 0, error = 0;
 
-            // получаем адрес для запросов к api
+            // получаем параметры для подключения к api redmine
             if (!error) {// если нету ошибок
                 if (index < wsh.arguments.length) {// если передан параметр
                     value = wsh.arguments(index);// получаем очередное значени
-                    if (value) {// если получено не пустое значение
-                        key = "/";// обязательное окончание адреса для запросов 
-                        flag = key != value.substr(value.length - key.length);
-                        if (flag) value += key;// добавляем окончание
-                        app.val.apiUrl = value;
-                    } else error = 2;
+                    instance = app.lib.url2obj(value);
+                    // получаем информацию о key
+                    if (!error && instance.fragment) {// если нужно выполнить
+                        if (!instance.user && !instance.password) {// если параметр прошёл проверку
+                            app.val.apiReadmineKey = instance.fragment;
+                            delete instance.fragment;
+                        } else error = 2;
+                    };
+                    // получаем информацию о логине и пароле
+                    if (!error && instance.user) {// если нужно выполнить
+                        if (instance.password && !instance.fragment) {// если параметр прошёл проверку
+                            app.val.apiReadmineUser = instance.user;
+                            app.val.apiReadminePassword = instance.password;
+                            delete instance.password;
+                            delete instance.user;
+                        } else error = 3;
+                    };
+                    // получаем информацию о базавом url
+                    if (!error) {// если нету ошибок
+                        if (instance.scheme && instance.domain) {// если параметр прошёл проверку
+                            instance.path = app.fun.fixUrlPath(instance.path);
+                            app.val.apiReadmineUrl = app.lib.obj2url(instance);
+                        } else error = 4;
+                    };
                 } else error = 1;
-                index++;
-            };
-            // получаем ключ для запросов к api
-            if (!error) {// если нету ошибок
-                if (index < wsh.arguments.length) {// если передан параметр
-                    value = wsh.arguments(index);// получаем очередное значени
-                    if (value) {// если получено не пустое значение
-                        app.val.apiKey = value;
-                    } else error = 4;
-                } else error = 3;
                 index++;
             };
             // получаем идентификатор метода
@@ -898,11 +937,10 @@ var readmine = new App({
             };
             // выполняем поддерживаемый метод
             if (!error) {// если нету ошибок
-                count = method.apply(app, list);
+                error = method.apply(app, list);
             };
             // завершаем сценарий кодом
-            value = error ? -1 * error : count;
-            wsh.quit(value);
+            wsh.quit(error);
         }
     });
 })(readmine, WSH);
