@@ -1,56 +1,56 @@
-/* 0.1.2 взаимодействие с redmine по средствам api
+/* 0.1.3 РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёРµ СЃ redmine РїРѕ СЃСЂРµРґСЃС‚РІР°Рј api
 
 cscript redmine.min.js <url> <key> <method> [... <param>]
 cscript redmine.min.js <url> <key> users.sync <fields> [<container>] [<auth>]
 cscript redmine.min.js <url> <key> issues.change [<query>] <fields> [<filters>]
 
-<url>               - базовый url адрес для запросов к api
-<key>               - ключ доступа к api для взаимодействия
-<method>            - собственный метод который нужно выполнить
-    users.sync      - синхранизация пользователей из ldap
-        <fields>    - поля и их ldap значения в формате id:value;id:value с шаблонизацией
-        <container> - контейнер пользователей в ldap
-        <auth>      - id режима аутентификации в приложении
-    issues.change   - изменение задач в сохранённом запросе
-        <query>     - id сохранённого запроса для всех проектов
-        <fields>    - поля и их значения в формате id:value;id:value с шаблонизацией
-        <filters>   - фильтр в формате id:value;id:value с шаблонизацией
+<url>               - Р±Р°Р·РѕРІС‹Р№ url Р°РґСЂРµСЃ РґР»СЏ Р·Р°РїСЂРѕСЃРѕРІ Рє api
+<key>               - РєР»СЋС‡ РґРѕСЃС‚СѓРїР° Рє api РґР»СЏ РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёСЏ
+<method>            - СЃРѕР±СЃС‚РІРµРЅРЅС‹Р№ РјРµС‚РѕРґ РєРѕС‚РѕСЂС‹Р№ РЅСѓР¶РЅРѕ РІС‹РїРѕР»РЅРёС‚СЊ
+    users.sync      - СЃРёРЅС…СЂР°РЅРёР·Р°С†РёСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· ldap
+        <fields>    - РїРѕР»СЏ Рё РёС… ldap Р·РЅР°С‡РµРЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ id:value;id:value СЃ С€Р°Р±Р»РѕРЅРёР·Р°С†РёРµР№
+        <container> - РєРѕРЅС‚РµР№РЅРµСЂ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РІ ldap
+        <auth>      - id СЂРµР¶РёРјР° Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РІ РїСЂРёР»РѕР¶РµРЅРёРё
+    issues.change   - РёР·РјРµРЅРµРЅРёРµ Р·Р°РґР°С‡ РІ СЃРѕС…СЂР°РЅС‘РЅРЅРѕРј Р·Р°РїСЂРѕСЃРµ
+        <query>     - id СЃРѕС…СЂР°РЅС‘РЅРЅРѕРіРѕ Р·Р°РїСЂРѕСЃР° РґР»СЏ РІСЃРµС… РїСЂРѕРµРєС‚РѕРІ
+        <fields>    - РїРѕР»СЏ Рё РёС… Р·РЅР°С‡РµРЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ id:value;id:value СЃ С€Р°Р±Р»РѕРЅРёР·Р°С†РёРµР№
+        <filters>   - С„РёР»СЊС‚СЂ РІ С„РѕСЂРјР°С‚Рµ id:value;id:value СЃ С€Р°Р±Р»РѕРЅРёР·Р°С†РёРµР№
 
 */
 
 var readmine = new App({
-    apiKey: null,       // ключ доступа к api приложения
-    apiUrl: null,       // базовый url адрес для запросов к api
-    delimVal: ":",      // разделитель значения от ключа
-    delimKey: ";",      // разделитель ключей между собой
-    delimId: ".",       // разделитель идентификаторов в ключе
-    stActive: 1,        // статус активного пользователя
-    stRegistered: 2,    // статус зарегистрированного пользователя
-    stLocked: 3         // статус заблокированного пользователя
+    apiKey: null,       // РєР»СЋС‡ РґРѕСЃС‚СѓРїР° Рє api РїСЂРёР»РѕР¶РµРЅРёСЏ
+    apiUrl: null,       // Р±Р°Р·РѕРІС‹Р№ url Р°РґСЂРµСЃ РґР»СЏ Р·Р°РїСЂРѕСЃРѕРІ Рє api
+    delimVal: ":",      // СЂР°Р·РґРµР»РёС‚РµР»СЊ Р·РЅР°С‡РµРЅРёСЏ РѕС‚ РєР»СЋС‡Р°
+    delimKey: ";",      // СЂР°Р·РґРµР»РёС‚РµР»СЊ РєР»СЋС‡РµР№ РјРµР¶РґСѓ СЃРѕР±РѕР№
+    delimId: ".",       // СЂР°Р·РґРµР»РёС‚РµР»СЊ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂРѕРІ РІ РєР»СЋС‡Рµ
+    stActive: 1,        // СЃС‚Р°С‚СѓСЃ Р°РєС‚РёРІРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+    stRegistered: 2,    // СЃС‚Р°С‚СѓСЃ Р·Р°СЂРµРіРёСЃС‚СЂРёСЂРѕРІР°РЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+    stLocked: 3         // СЃС‚Р°С‚СѓСЃ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅРЅРѕРіРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
 });
 
-// подключаем зависимые свойства приложения
-(function (app, wsh, undefined) {// замыкаем чтобы не засорять глабальные объекты
-    app.lib.extend(app, {// добавляем частный функционал приложения
-        fun: {// зависимые функции частного назначения
+// РїРѕРґРєР»СЋС‡Р°РµРј Р·Р°РІРёСЃРёРјС‹Рµ СЃРІРѕР№СЃС‚РІР° РїСЂРёР»РѕР¶РµРЅРёСЏ
+(function (app, wsh, undefined) {// Р·Р°РјС‹РєР°РµРј С‡С‚РѕР±С‹ РЅРµ Р·Р°СЃРѕСЂСЏС‚СЊ РіР»Р°Р±Р°Р»СЊРЅС‹Рµ РѕР±СЉРµРєС‚С‹
+    app.lib.extend(app, {// РґРѕР±Р°РІР»СЏРµРј С‡Р°СЃС‚РЅС‹Р№ С„СѓРЅРєС†РёРѕРЅР°Р» РїСЂРёР»РѕР¶РµРЅРёСЏ
+        fun: {// Р·Р°РІРёСЃРёРјС‹Рµ С„СѓРЅРєС†РёРё С‡Р°СЃС‚РЅРѕРіРѕ РЅР°Р·РЅР°С‡РµРЅРёСЏ
 
             /**
-             * Преобразовывает строку в значение угадывая тип.
-             * @param {string} input - Строка с данными.
-             * @returns {string|boolean|number|date} Значение данных.
+             * РџСЂРµРѕР±СЂР°Р·РѕРІС‹РІР°РµС‚ СЃС‚СЂРѕРєСѓ РІ Р·РЅР°С‡РµРЅРёРµ СѓРіР°РґС‹РІР°СЏ С‚РёРї.
+             * @param {string} input - РЎС‚СЂРѕРєР° СЃ РґР°РЅРЅС‹РјРё.
+             * @returns {string|boolean|number|date} Р—РЅР°С‡РµРЅРёРµ РґР°РЅРЅС‹С….
              */
 
             str2val: function (input) {
                 var value;
 
-                switch (true) {// поддерживаемые преобразования
+                switch (true) {// РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
                     case "true" == input: value = true; break;
                     case "false" == input: value = false; break;
                     case !!input && !isNaN(input): value = Number(input); break;
                     case "--" == input.charAt(4) + input.charAt(7) &&
                         "::" == input.charAt(13) + input.charAt(16) &&
                         "TZ" == input.charAt(10) + input.charAt(19):
-                        value = Date.UTC(// дата в нужном часовом поясе
+                        value = Date.UTC(// РґР°С‚Р° РІ РЅСѓР¶РЅРѕРј С‡Р°СЃРѕРІРѕРј РїРѕСЏСЃРµ
                             Number(input.substr(0, 4)),
                             Number(input.substr(5, 2)),
                             Number(input.substr(8, 2)),
@@ -62,20 +62,20 @@ var readmine = new App({
                         break;
                     default: value = input;
                 };
-                // возвращаем результат
+                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                 return value;
             },
 
             /**
-             * Преобразовывает значение в строку.
-             * @param {string|boolean|number|date} input - Значение данных.
-             * @returns {string|null} Строка с данными или null.
+             * РџСЂРµРѕР±СЂР°Р·РѕРІС‹РІР°РµС‚ Р·РЅР°С‡РµРЅРёРµ РІ СЃС‚СЂРѕРєСѓ.
+             * @param {string|boolean|number|date} input - Р—РЅР°С‡РµРЅРёРµ РґР°РЅРЅС‹С….
+             * @returns {string|null} РЎС‚СЂРѕРєР° СЃ РґР°РЅРЅС‹РјРё РёР»Рё null.
              */
 
             val2str: function (input) {
                 var value;
 
-                switch (true) {// поддерживаемые преобразования
+                switch (true) {// РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
                     case app.lib.validate(input, "string"):
                     case app.lib.validate(input, "number"):
                         value = "" + input;
@@ -95,65 +95,65 @@ var readmine = new App({
                     default:
                         value = null;
                 };
-                // возвращаем результат
+                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                 return value;
             },
 
             /**
-             * Рекурсивно конвертирует XML в объект с данными.
-             * @param {XMLDocument} [xml] - Объект XML для конвертации.
-             * @returns {object|array|null} Сконвертированный объект с данными.
+             * Р РµРєСѓСЂСЃРёРІРЅРѕ РєРѕРЅРІРµСЂС‚РёСЂСѓРµС‚ XML РІ РѕР±СЉРµРєС‚ СЃ РґР°РЅРЅС‹РјРё.
+             * @param {XMLDocument} [xml] - РћР±СЉРµРєС‚ XML РґР»СЏ РєРѕРЅРІРµСЂС‚Р°С†РёРё.
+             * @returns {object|array|null} РЎРєРѕРЅРІРµСЂС‚РёСЂРѕРІР°РЅРЅС‹Р№ РѕР±СЉРµРєС‚ СЃ РґР°РЅРЅС‹РјРё.
              */
 
             xml2obj: function (xml) {
                 var node, item, value, obj = {}, isArray = null, isNull = true;
 
-                // обрабатываем xml
-                if (xml) {// если передан xml для работы
-                    // обрабатываем аттрибуты и переносим их значения в объект
+                // РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј xml
+                if (xml) {// РµСЃР»Рё РїРµСЂРµРґР°РЅ xml РґР»СЏ СЂР°Р±РѕС‚С‹
+                    // РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј Р°С‚С‚СЂРёР±СѓС‚С‹ Рё РїРµСЂРµРЅРѕСЃРёРј РёС… Р·РЅР°С‡РµРЅРёСЏ РІ РѕР±СЉРµРєС‚
                     node = xml.documentElement ? xml.documentElement : xml;
                     for (var i = 0, iLen = node.attributes.length; i < iLen; i++) {
-                        item = node.attributes[i];// получаем очередное значение
-                        isNull = false;// отмечаем что объект не пустой элимент
-                        if ("type" != item.name && "array" != item.value) {// если не массив
-                            obj[item.name] = app.fun.str2val(item.value);// переносим значения
+                        item = node.attributes[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
+                        isNull = false;// РѕС‚РјРµС‡Р°РµРј С‡С‚Рѕ РѕР±СЉРµРєС‚ РЅРµ РїСѓСЃС‚РѕР№ СЌР»РёРјРµРЅС‚
+                        if ("type" != item.name && "array" != item.value) {// РµСЃР»Рё РЅРµ РјР°СЃСЃРёРІ
+                            obj[item.name] = app.fun.str2val(item.value);// РїРµСЂРµРЅРѕСЃРёРј Р·РЅР°С‡РµРЅРёСЏ
                         } else if (!xml.documentElement) isArray = true;
                     };
-                    // обрабатываем дочерние элименты и переносим их значения в объект
-                    if (isArray) obj = [];// переключаемся в режим массива
+                    // РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РґРѕС‡РµСЂРЅРёРµ СЌР»РёРјРµРЅС‚С‹ Рё РїРµСЂРµРЅРѕСЃРёРј РёС… Р·РЅР°С‡РµРЅРёСЏ РІ РѕР±СЉРµРєС‚
+                    if (isArray) obj = [];// РїРµСЂРµРєР»СЋС‡Р°РµРјСЃСЏ РІ СЂРµР¶РёРј РјР°СЃСЃРёРІР°
                     for (var i = 0, iLen = xml.childNodes.length; i < iLen; i++) {
-                        node = xml.childNodes[i];// получаем очередное значение
-                        switch (node.nodeType) {// поддерживаемые типы узлов
-                            case 1: // узел элемента
-                                isNull = false;// отмечаем что объект не пустой
+                        node = xml.childNodes[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
+                        switch (node.nodeType) {// РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ С‚РёРїС‹ СѓР·Р»РѕРІ
+                            case 1: // СѓР·РµР» СЌР»РµРјРµРЅС‚Р°
+                                isNull = false;// РѕС‚РјРµС‡Р°РµРј С‡С‚Рѕ РѕР±СЉРµРєС‚ РЅРµ РїСѓСЃС‚РѕР№
                                 value = app.fun.xml2obj(node);
                                 if (isArray) obj.push(value);
                                 else obj[node.nodeName] = value;
                                 break;
-                            case 3:// текстовый узел
-                                isNull = false;// отмечаем что объект не пустой
+                            case 3:// С‚РµРєСЃС‚РѕРІС‹Р№ СѓР·РµР»
+                                isNull = false;// РѕС‚РјРµС‡Р°РµРј С‡С‚Рѕ РѕР±СЉРµРєС‚ РЅРµ РїСѓСЃС‚РѕР№
                                 obj = app.fun.str2val(node.nodeValue);
                                 break;
                         };
                     };
                 } else isNull = false;
-                // возвращаем результат
+                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                 return !isNull ? obj : null;
             },
 
             /**
-             * Рекурсивно конвертирует объект с данными в XML.
-             * @param {object|array} [obj] - Объект с данными для конвертации.
-             * @param {Element} [parent] - Родительские элимент.
-             * @returns {XMLDocument|DocumentFragment|null} Сконвертированные данные в XML.
+             * Р РµРєСѓСЂСЃРёРІРЅРѕ РєРѕРЅРІРµСЂС‚РёСЂСѓРµС‚ РѕР±СЉРµРєС‚ СЃ РґР°РЅРЅС‹РјРё РІ XML.
+             * @param {object|array} [obj] - РћР±СЉРµРєС‚ СЃ РґР°РЅРЅС‹РјРё РґР»СЏ РєРѕРЅРІРµСЂС‚Р°С†РёРё.
+             * @param {Element} [parent] - Р РѕРґРёС‚РµР»СЊСЃРєРёРµ СЌР»РёРјРµРЅС‚.
+             * @returns {XMLDocument|DocumentFragment|null} РЎРєРѕРЅРІРµСЂС‚РёСЂРѕРІР°РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ РІ XML.
              */
 
             obj2xml: function (obj, parent) {
                 var value, unit, node, item, items, names, name = "item",
                     xml = null, fragment = null;
 
-                // создаём необходимые объекты
-                names = {// преобразование имён
+                // СЃРѕР·РґР°С‘Рј РЅРµРѕР±С…РѕРґРёРјС‹Рµ РѕР±СЉРµРєС‚С‹
+                names = {// РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёРµ РёРјС‘РЅ
                     custom_fields: "custom_field",
                     memberships: "membership",
                     groups: "group",
@@ -161,76 +161,76 @@ var readmine = new App({
                     users: "user",
                     roles: "role"
                 };
-                // определяем document для xml
-                if (!parent) {// если не передан родитель
-                    items = [// список идентификаторов объектов
+                // РѕРїСЂРµРґРµР»СЏРµРј document РґР»СЏ xml
+                if (!parent) {// РµСЃР»Рё РЅРµ РїРµСЂРµРґР°РЅ СЂРѕРґРёС‚РµР»СЊ
+                    items = [// СЃРїРёСЃРѕРє РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂРѕРІ РѕР±СЉРµРєС‚РѕРІ
                         "MSXML2.DOMDocument.6.0",
                         "MSXML2.DOMDocument.3.0",
                         "MSXML2.DOMDocument"
                     ];
                     for (var i = 0, iLen = items.length; !xml && i < iLen; i++) {
-                        item = items[i];// получаем очередной элимент
-                        try {// пробуем сформировать объект
+                        item = items[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
+                        try {// РїСЂРѕР±СѓРµРј СЃС„РѕСЂРјРёСЂРѕРІР°С‚СЊ РѕР±СЉРµРєС‚
                             xml = new ActiveXObject(item);
-                        } catch (e) { };// игнорируем исключения
+                        } catch (e) { };// РёРіРЅРѕСЂРёСЂСѓРµРј РёСЃРєР»СЋС‡РµРЅРёСЏ
                     };
                     value = 'version="1.0" encoding="UTF-8"';
                     node = xml.createProcessingInstruction("xml", value);
-                    xml.appendChild(node);// добавляем заголовки
-                } else if (parent.ownerDocument) {// если не document
+                    xml.appendChild(node);// РґРѕР±Р°РІР»СЏРµРј Р·Р°РіРѕР»РѕРІРєРё
+                } else if (parent.ownerDocument) {// РµСЃР»Рё РЅРµ document
                     xml = parent.ownerDocument;
                 };
-                // работаем с переданными данными
-                if (xml) {// если удалось создать xml
+                // СЂР°Р±РѕС‚Р°РµРј СЃ РїРµСЂРµРґР°РЅРЅС‹РјРё РґР°РЅРЅС‹РјРё
+                if (xml) {// РµСЃР»Рё СѓРґР°Р»РѕСЃСЊ СЃРѕР·РґР°С‚СЊ xml
                     fragment = xml.createDocumentFragment();
-                    // обрабатываем данные переданные в виде массива
-                    if (app.lib.validate(obj, "array")) {// если нужно выполнить
-                        if (parent) {// если задан родитель
+                    // РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РґР°РЅРЅС‹Рµ РїРµСЂРµРґР°РЅРЅС‹Рµ РІ РІРёРґРµ РјР°СЃСЃРёРІР°
+                    if (app.lib.validate(obj, "array")) {// РµСЃР»Рё РЅСѓР¶РЅРѕ РІС‹РїРѕР»РЅРёС‚СЊ
+                        if (parent) {// РµСЃР»Рё Р·Р°РґР°РЅ СЂРѕРґРёС‚РµР»СЊ
                             parent.setAttribute("type", "array");
-                            value = parent.nodeName;// получаем имя узла
+                            value = parent.nodeName;// РїРѕР»СѓС‡Р°РµРј РёРјСЏ СѓР·Р»Р°
                             name = names[value] ? names[value] : name;
                         };
-                        // работаем с массивом элиментов
+                        // СЂР°Р±РѕС‚Р°РµРј СЃ РјР°СЃСЃРёРІРѕРј СЌР»РёРјРµРЅС‚РѕРІ
                         for (var i = 0, iLen = obj.length; i < iLen; i++) {
-                            unit = xml.createElement(name);// создаём узел
-                            // работаем с элиментом массива
-                            for (var key in obj[i]) {// пробизаемся по ключам
-                                item = obj[i][key];// получаем очередной элимент
-                                value = app.fun.val2str(item);// конвертируем в значение
-                                switch (true) {// условные преобразования
-                                    case "value" == key && "custom_field" == name:// значение поля
-                                    case "membership" == name:// участник
-                                    case "user" == name:// участник
-                                        node = item;// сохраняем элимент
-                                        item = {};// сбрасываем значение
-                                        item[key] = node;// назначаем
-                                    case !value:// в элименте не значение
+                            unit = xml.createElement(name);// СЃРѕР·РґР°С‘Рј СѓР·РµР»
+                            // СЂР°Р±РѕС‚Р°РµРј СЃ СЌР»РёРјРµРЅС‚РѕРј РјР°СЃСЃРёРІР°
+                            for (var key in obj[i]) {// РїСЂРѕР±РёР·Р°РµРјСЃСЏ РїРѕ РєР»СЋС‡Р°Рј
+                                item = obj[i][key];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
+                                value = app.fun.val2str(item);// РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј РІ Р·РЅР°С‡РµРЅРёРµ
+                                switch (true) {// СѓСЃР»РѕРІРЅС‹Рµ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
+                                    case "value" == key && "custom_field" == name:// Р·РЅР°С‡РµРЅРёРµ РїРѕР»СЏ
+                                    case "membership" == name:// СѓС‡Р°СЃС‚РЅРёРє
+                                    case "user" == name:// СѓС‡Р°СЃС‚РЅРёРє
+                                        node = item;// СЃРѕС…СЂР°РЅСЏРµРј СЌР»РёРјРµРЅС‚
+                                        item = {};// СЃР±СЂР°СЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ
+                                        item[key] = node;// РЅР°Р·РЅР°С‡Р°РµРј
+                                    case !value:// РІ СЌР»РёРјРµРЅС‚Рµ РЅРµ Р·РЅР°С‡РµРЅРёРµ
                                         node = app.fun.obj2xml(item, unit);
                                         unit.appendChild(node);
                                         break;
-                                    default:// по умолчанию
+                                    default:// РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ
                                         unit.setAttribute(key, value);
                                 };
                             };
                             fragment.appendChild(unit);
                         };
                     };
-                    // обрабатываем данные переданные в виде объекта
-                    if (app.lib.validate(obj, "object")) {// если нужно выполнить
-                        if (parent) name = parent.nodeName;// имя родителя
-                        // работаем с переданным объектом
-                        for (var key in obj) {// пробизаемся по ключам
-                            item = obj[key];// получаем очередной элимент
-                            value = app.fun.val2str(item);// конвертируем в значение
-                            switch (true) {// условные преобразования
-                                case !!value && "project" == name:// проект
-                                case !!value && "tracker" == name:// трекер
-                                case !!value && "priority" == name:// приоритет
-                                case !!value && "author" == name:// автор
-                                case !!value && "category" == name:// категория
+                    // РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РґР°РЅРЅС‹Рµ РїРµСЂРµРґР°РЅРЅС‹Рµ РІ РІРёРґРµ РѕР±СЉРµРєС‚Р°
+                    if (app.lib.validate(obj, "object")) {// РµСЃР»Рё РЅСѓР¶РЅРѕ РІС‹РїРѕР»РЅРёС‚СЊ
+                        if (parent) name = parent.nodeName;// РёРјСЏ СЂРѕРґРёС‚РµР»СЏ
+                        // СЂР°Р±РѕС‚Р°РµРј СЃ РїРµСЂРµРґР°РЅРЅС‹Рј РѕР±СЉРµРєС‚РѕРј
+                        for (var key in obj) {// РїСЂРѕР±РёР·Р°РµРјСЃСЏ РїРѕ РєР»СЋС‡Р°Рј
+                            item = obj[key];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
+                            value = app.fun.val2str(item);// РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј РІ Р·РЅР°С‡РµРЅРёРµ
+                            switch (true) {// СѓСЃР»РѕРІРЅС‹Рµ РїСЂРµРѕР±СЂР°Р·РѕРІР°РЅРёСЏ
+                                case !!value && "project" == name:// РїСЂРѕРµРєС‚
+                                case !!value && "tracker" == name:// С‚СЂРµРєРµСЂ
+                                case !!value && "priority" == name:// РїСЂРёРѕСЂРёС‚РµС‚
+                                case !!value && "author" == name:// Р°РІС‚РѕСЂ
+                                case !!value && "category" == name:// РєР°С‚РµРіРѕСЂРёСЏ
                                     if (parent) parent.setAttribute(key, value);
                                     break;
-                                case !!parent || !unit && !value:// нужно выполнить
+                                case !!parent || !unit && !value:// РЅСѓР¶РЅРѕ РІС‹РїРѕР»РЅРёС‚СЊ
                                     unit = xml.createElement(key);
                                     if (!value) node = app.fun.obj2xml(item, unit);
                                     else node = xml.createTextNode(value);
@@ -239,96 +239,96 @@ var readmine = new App({
                             };
 
                         };
-                        // работаем с аттрибутами корневого элимента
-                        if (!parent && unit) {// если это свойство корня
-                            for (var key in obj) {// пробизаемся по ключам
-                                item = obj[key];// получаем очередной элимент
-                                value = app.fun.val2str(item);// конвертируем в значение
+                        // СЂР°Р±РѕС‚Р°РµРј СЃ Р°С‚С‚СЂРёР±СѓС‚Р°РјРё РєРѕСЂРЅРµРІРѕРіРѕ СЌР»РёРјРµРЅС‚Р°
+                        if (!parent && unit) {// РµСЃР»Рё СЌС‚Рѕ СЃРІРѕР№СЃС‚РІРѕ РєРѕСЂРЅСЏ
+                            for (var key in obj) {// РїСЂРѕР±РёР·Р°РµРјСЃСЏ РїРѕ РєР»СЋС‡Р°Рј
+                                item = obj[key];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
+                                value = app.fun.val2str(item);// РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј РІ Р·РЅР°С‡РµРЅРёРµ
                                 if (value) unit.setAttribute(key, value);
                             };
                         };
                     };
-                    // возвращаем результат
+                    // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                     if (!parent) xml.appendChild(fragment);
                 };
                 return parent ? fragment : xml;
             },
 
             /**
-             * Преобразует элимент ldap в объект пользователя.
-             * @param {object} item - Элимент с данными для конвертации.
-             * @param {object} fields - Объект соответствия id поля и шаблона.
-             * @returns {object} Объект пользователя.
+             * РџСЂРµРѕР±СЂР°Р·СѓРµС‚ СЌР»РёРјРµРЅС‚ ldap РІ РѕР±СЉРµРєС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+             * @param {object} item - Р­Р»РёРјРµРЅС‚ СЃ РґР°РЅРЅС‹РјРё РґР»СЏ РєРѕРЅРІРµСЂС‚Р°С†РёРё.
+             * @param {object} fields - РћР±СЉРµРєС‚ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёСЏ id РїРѕР»СЏ Рё С€Р°Р±Р»РѕРЅР°.
+             * @returns {object} РћР±СЉРµРєС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
              */
 
             item2user: function (item, fields) {
                 var value, flag, user = {}, error = 0;
 
-                // проверяем наличее элимента с данными
-                if (!error) {// если нету ошибок
-                    if (item) {// если элимент передан
+                // РїСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РµРµ СЌР»РёРјРµРЅС‚Р° СЃ РґР°РЅРЅС‹РјРё
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                    if (item) {// РµСЃР»Рё СЌР»РёРјРµРЅС‚ РїРµСЂРµРґР°РЅ
                     } else error = 1;
                 };
-                // проверяем наличее объект соответствия
-                if (!error) {// если нету ошибок
-                    if (fields) {// если объект передан
+                // РїСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РµРµ РѕР±СЉРµРєС‚ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёСЏ
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                    if (fields) {// РµСЃР»Рё РѕР±СЉРµРєС‚ РїРµСЂРµРґР°РЅ
                     } else error = 2;
                 };
-                // вычесляем статус и кешируем пользователя
-                if (!error) {// если нету ошибок
+                // РІС‹С‡РµСЃР»СЏРµРј СЃС‚Р°С‚СѓСЃ Рё РєРµС€РёСЂСѓРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     value = item.get("userAccountControl");
-                    flag = value & 2;// пользователь заблокирован
+                    flag = value & 2;// РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ Р·Р°Р±Р»РѕРєРёСЂРѕРІР°РЅ
                     user.status = !flag ? app.val.stActive : app.val.stLocked;
                 };
-                // получаем значение для полей
-                if (!error) {// если нету ошибок
-                    for (var id in fields) {// пробигаемся по соответствию
-                        value = fields[id];// получаем очередное значение
-                        if (value) {// если в фильтре есть шаблон
+                // РїРѕР»СѓС‡Р°РµРј Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РїРѕР»РµР№
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                    for (var id in fields) {// РїСЂРѕР±РёРіР°РµРјСЃСЏ РїРѕ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёСЋ
+                        value = fields[id];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
+                        if (value) {// РµСЃР»Рё РІ С„РёР»СЊС‚СЂРµ РµСЃС‚СЊ С€Р°Р±Р»РѕРЅ
                             value = app.lib.template(value, function (keys) {
                                 var unit, flag, key;
 
-                                // последовательно получаем данные по ключам
-                                flag = true;// успешность получения данных
-                                unit = item;// получаем объект для запросов
+                                // РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ РїРѕР»СѓС‡Р°РµРј РґР°РЅРЅС‹Рµ РїРѕ РєР»СЋС‡Р°Рј
+                                flag = true;// СѓСЃРїРµС€РЅРѕСЃС‚СЊ РїРѕР»СѓС‡РµРЅРёСЏ РґР°РЅРЅС‹С…
+                                unit = item;// РїРѕР»СѓС‡Р°РµРј РѕР±СЉРµРєС‚ РґР»СЏ Р·Р°РїСЂРѕСЃРѕРІ
                                 for (var i = 0, iLen = keys.length; flag && i < iLen; i++) {
-                                    key = keys[i];// получаем очередной ключ
-                                    try {// пробуем получить значение по ключу
-                                        if (i) unit = app.wsh.getLDAP(unit)[0];
+                                    key = keys[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ РєР»СЋС‡
+                                    try {// РїСЂРѕР±СѓРµРј РїРѕР»СѓС‡РёС‚СЊ Р·РЅР°С‡РµРЅРёРµ РїРѕ РєР»СЋС‡Сѓ
+                                        if (i) unit = app.wsh.ldap(unit)[0];
                                         if (unit) unit = unit.get(key);
                                         else flag = false;
-                                    } catch (e) {// обрабатываем исключения
+                                    } catch (e) {// РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј РёСЃРєР»СЋС‡РµРЅРёСЏ
                                         flag = false;
                                     };
                                 };
-                                // возвращаем результат
+                                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                                 if (flag) return unit;
                             }, app.fun.filter);
                         };
-                        // присваиваем значения
+                        // РїСЂРёСЃРІР°РёРІР°РµРј Р·РЅР°С‡РµРЅРёСЏ
                         value = app.fun.str2val(value);
-                        if (!isNaN(id)) {// если дополнительное поле
+                        if (!isNaN(id)) {// РµСЃР»Рё РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРµ РїРѕР»Рµ
                             if (!user.custom_fields) user.custom_fields = [];
                             user.custom_fields.push({ id: id, value: value });
                         } else user[id] = value;
                     };
                 };
-                // возвращаем результат
+                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                 return user;
             },
 
             /**
-             * Получает аттрибут по по значению заданного типа.
-             * @param {string} type - Тип получаемого аттрибута.
-             * @param {string} value - Значение для получаемого аттрибута.
-             * @returns {string} Запрошенный аттрибут или пустая строка.
+             * РџРѕР»СѓС‡Р°РµС‚ Р°С‚С‚СЂРёР±СѓС‚ РїРѕ РїРѕ Р·РЅР°С‡РµРЅРёСЋ Р·Р°РґР°РЅРЅРѕРіРѕ С‚РёРїР°.
+             * @param {string} type - РўРёРї РїРѕР»СѓС‡Р°РµРјРѕРіРѕ Р°С‚С‚СЂРёР±СѓС‚Р°.
+             * @param {string} value - Р—РЅР°С‡РµРЅРёРµ РґР»СЏ РїРѕР»СѓС‡Р°РµРјРѕРіРѕ Р°С‚С‚СЂРёР±СѓС‚Р°.
+             * @returns {string} Р—Р°РїСЂРѕС€РµРЅРЅС‹Р№ Р°С‚С‚СЂРёР±СѓС‚ РёР»Рё РїСѓСЃС‚Р°СЏ СЃС‚СЂРѕРєР°.
              */
 
             getAttribute: function (type, value) {
                 var relation, attribute = "";
 
-                // создаём необходимые объекты
-                relation = {// связь идетификаторов
+                // СЃРѕР·РґР°С‘Рј РЅРµРѕР±С…РѕРґРёРјС‹Рµ РѕР±СЉРµРєС‚С‹
+                relation = {// СЃРІСЏР·СЊ РёРґРµС‚РёС„РёРєР°С‚РѕСЂРѕРІ
                     project: ["project_id"],
                     tracker: ["tracker_id"],
                     status: ["status_id"],
@@ -347,30 +347,30 @@ var readmine = new App({
                     updated: ["updated_on"],
                     closed: ["closed_on"]
                 };
-                // вычисляем аттрибут
-                switch (type) {// поддерживаемые типы
-                    case "custom":// пользовательский
-                        for (var key in relation) {// пробигаемся по связям
+                // РІС‹С‡РёСЃР»СЏРµРј Р°С‚С‚СЂРёР±СѓС‚
+                switch (type) {// РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ С‚РёРїС‹
+                    case "custom":// РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРёР№
+                        for (var key in relation) {// РїСЂРѕР±РёРіР°РµРјСЃСЏ РїРѕ СЃРІСЏР·СЏРј
                             for (var i = 0, iLen = relation[key].length; i < iLen; i++) {
                                 if (value == relation[key][i]) attribute = key;
                             };
                         };
                         break;
-                    case "original":// оригинальный
-                        for (var key in relation) {// пробигаемся по связям
+                    case "original":// РѕСЂРёРіРёРЅР°Р»СЊРЅС‹Р№
+                        for (var key in relation) {// РїСЂРѕР±РёРіР°РµРјСЃСЏ РїРѕ СЃРІСЏР·СЏРј
                             if (value == key) attribute = relation[key][0];
                         };
                         break;
                 };
-                // возвращаем результат
+                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                 return attribute;
             },
 
             /**
-             * Фильтрует переданные данные.
-             * @param {string} name - Имя фильтра для фильтрации.
-             * @param {object} data - Данные для фильтрации.
-             * @returns {object|undefined} Отфильтрованные данные.
+             * Р¤РёР»СЊС‚СЂСѓРµС‚ РїРµСЂРµРґР°РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ.
+             * @param {string} name - РРјСЏ С„РёР»СЊС‚СЂР° РґР»СЏ С„РёР»СЊС‚СЂР°С†РёРё.
+             * @param {object} data - Р”Р°РЅРЅС‹Рµ РґР»СЏ С„РёР»СЊС‚СЂР°С†РёРё.
+             * @returns {object|undefined} РћС‚С„РёР»СЊС‚СЂРѕРІР°РЅРЅС‹Рµ РґР°РЅРЅС‹Рµ.
              */
 
             filter: function (name, data) {
@@ -384,14 +384,14 @@ var readmine = new App({
                 value = value.split('"').join("");
                 value = value.split("'").join("");
                 keys = value.split(app.val.delimId);
-                switch (true) {// поддерживаемые форматы
-                    case "phone" == name.toLowerCase():// телефонный номер
-                        // очищаем значение
+                switch (true) {// РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ С„РѕСЂРјР°С‚С‹
+                    case "phone" == name.toLowerCase():// С‚РµР»РµС„РѕРЅРЅС‹Р№ РЅРѕРјРµСЂ
+                        // РѕС‡РёС‰Р°РµРј Р·РЅР°С‡РµРЅРёРµ
                         value = data ? app.lib.trim("" + data) : "";
-                        value = value.replace(/\D/g, "");// оставляем только цыфры
+                        value = value.replace(/\D/g, "");// РѕСЃС‚Р°РІР»СЏРµРј С‚РѕР»СЊРєРѕ С†С‹С„СЂС‹
                         if (!value.indexOf("8") && value.length > 10) value = "7" + value.substr(1);
-                        // форматируем значение
-                        list = [// массив значений для форматирования
+                        // С„РѕСЂРјР°С‚РёСЂСѓРµРј Р·РЅР°С‡РµРЅРёРµ
+                        list = [// РјР°СЃСЃРёРІ Р·РЅР°С‡РµРЅРёР№ РґР»СЏ С„РѕСЂРјР°С‚РёСЂРѕРІР°РЅРёСЏ
                             { index: 0, length: value.length - 10 },
                             { index: value.length - 10, length: 3 },
                             { index: value.length - 7, length: 3 },
@@ -403,115 +403,115 @@ var readmine = new App({
                             list[i] = value.substr(Math.max(0, list[i].index), Math.max(0, length));
                         };
                         if (!list[0] && list[1]) list[0] = 7;
-                        value = "";// пустое значение
+                        value = "";// РїСѓСЃС‚РѕРµ Р·РЅР°С‡РµРЅРёРµ
                         value += list[0] ? "+" + (list[0]) : "";
                         value += list[1] ? " (" + list[1] + ") " : "";
                         value += list[2] ? list[2] + "-" : "";
                         value += list[3] ? list[3] + (list[2] ? "-" : "") : "";
                         value += list[4] ? list[4] : "";
-                        // возвращаем результат
+                        // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                         return value;
                         break;
-                    case "normal" == name.toLowerCase():// нормализация
-                        // очищаем значение
+                    case "normal" == name.toLowerCase():// РЅРѕСЂРјР°Р»РёР·Р°С†РёСЏ
+                        // РѕС‡РёС‰Р°РµРј Р·РЅР°С‡РµРЅРёРµ
                         value = data ? app.lib.trim("" + data) : "";
-                        key = ".";// заканчивается на точку
+                        key = ".";// Р·Р°РєР°РЅС‡РёРІР°РµС‚СЃСЏ РЅР° С‚РѕС‡РєСѓ
                         if (value.indexOf(key) == value.length - key.length) {
                             value = value.substr(0, value.length - key.length);
                         };
-                        key = "FW:";// признак пересылки
+                        key = "FW:";// РїСЂРёР·РЅР°Рє РїРµСЂРµСЃС‹Р»РєРё
                         if (!value.indexOf(key)) value = value.substr(key.length);
-                        key = "RE:";// признак ответа
+                        key = "RE:";// РїСЂРёР·РЅР°Рє РѕС‚РІРµС‚Р°
                         if (!value.indexOf(key)) value = value.substr(key.length);
                         value = app.lib.trim(value);
                         if (value.charAt(0) == value.charAt(0).toLowerCase()) {
                             value = value.charAt(0).toUpperCase() + value.substr(1);
                         };
-                        // возвращаем результат
+                        // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                         return value;
                         break;
-                    case "hash" == name.toLowerCase():// хеш
-                        // очищаем значение
+                    case "hash" == name.toLowerCase():// С…РµС€
+                        // РѕС‡РёС‰Р°РµРј Р·РЅР°С‡РµРЅРёРµ
                         value = data ? app.lib.trim("" + data) : "";
-                        // форматируем значение
+                        // С„РѕСЂРјР°С‚РёСЂСѓРµРј Р·РЅР°С‡РµРЅРёРµ
                         value = app.lib.strim(value, "#", "", false, false);
-                        // возвращаем результат
+                        // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                         return value;
                         break;
-                    case "set" == name.toLowerCase():// проверка значения
-                        // очищаем значение
+                    case "set" == name.toLowerCase():// РїСЂРѕРІРµСЂРєР° Р·РЅР°С‡РµРЅРёСЏ
+                        // РѕС‡РёС‰Р°РµРј Р·РЅР°С‡РµРЅРёРµ
                         value = data ? app.lib.trim("" + data) : "";
-                        // форматируем значение
+                        // С„РѕСЂРјР°С‚РёСЂСѓРµРј Р·РЅР°С‡РµРЅРёРµ
                         value = (flag = value) ? "true" : null;
-                        // возвращаем результат
+                        // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                         if (flag) return value;
                         break;
-                    case "user" == keys[0].toLowerCase():// пользователь
+                    case "user" == keys[0].toLowerCase():// РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
                         if (!unit) unit = { include: ["groups"].join(",") };
-                    case "issue" == keys[0].toLowerCase():// задача
+                    case "issue" == keys[0].toLowerCase():// Р·Р°РґР°С‡Р°
                         if (!unit) unit = { include: ["journals", "watchers"].join(",") };
-                    case "project" == keys[0].toLowerCase():// проект
+                    case "project" == keys[0].toLowerCase():// РїСЂРѕРµРєС‚
                         if (!unit) unit = { include: ["trackers"].join(",") };
-                        // определяем идентификатор элимента
+                        // РѕРїСЂРµРґРµР»СЏРµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЌР»РёРјРµРЅС‚Р°
                         if (data && data.id) id = data.id;
                         else if (!isNaN(data)) id = data;
                         else id = null;
-                        // получаем элимент данных
-                        if (id) {// если есть идентификатор
+                        // РїРѕР»СѓС‡Р°РµРј СЌР»РёРјРµРЅС‚ РґР°РЅРЅС‹С…
+                        if (id) {// РµСЃР»Рё РµСЃС‚СЊ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ
                             key = keys.shift().toLowerCase();
                             data = app.api("get", key + "s/" + id, unit);
                             data = data[key] ? data[key] : null;
-                        } else if (data) {// если не пустое значение
+                        } else if (data) {// РµСЃР»Рё РЅРµ РїСѓСЃС‚РѕРµ Р·РЅР°С‡РµРЅРёРµ
                             key = keys.shift().toLowerCase() + "s";
-                            data = { name: data };// данные для запроса
+                            data = { name: data };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
                             data = app.api("get", key, data);
                             data = data[key] ? data[key][0] : null;
                         } else data = null;
-                        // получаем цепочтку данных по ключам
-                        unit = data;// получаем данные для проверки
-                        flag = unit;// успешно получены данные
+                        // РїРѕР»СѓС‡Р°РµРј С†РµРїРѕС‡С‚РєСѓ РґР°РЅРЅС‹С… РїРѕ РєР»СЋС‡Р°Рј
+                        unit = data;// РїРѕР»СѓС‡Р°РµРј РґР°РЅРЅС‹Рµ РґР»СЏ РїСЂРѕРІРµСЂРєРё
+                        flag = unit;// СѓСЃРїРµС€РЅРѕ РїРѕР»СѓС‡РµРЅС‹ РґР°РЅРЅС‹Рµ
                         for (var k = 0, kLen = keys.length; flag && k < kLen; k++) {
-                            key = keys[k];// получаем очередной ключ
-                            if (!isNaN(key)) {// если это дополнительное поле
+                            key = keys[k];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ РєР»СЋС‡
+                            if (!isNaN(key)) {// РµСЃР»Рё СЌС‚Рѕ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРµ РїРѕР»Рµ
                                 key = Number(key);
                                 unit = unit.custom_fields;
-                                flag = unit;// успешно получены данные
-                                if (flag) {// если есть дополнительные поля
-                                    flag = false;// найдено значение
+                                flag = unit;// СѓСЃРїРµС€РЅРѕ РїРѕР»СѓС‡РµРЅС‹ РґР°РЅРЅС‹Рµ
+                                if (flag) {// РµСЃР»Рё РµСЃС‚СЊ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ
+                                    flag = false;// РЅР°Р№РґРµРЅРѕ Р·РЅР°С‡РµРЅРёРµ
                                     for (var j = 0, jLen = unit.length; !flag && j < jLen; j++) {
-                                        flag = key == unit[j].id;// найдено значение
+                                        flag = key == unit[j].id;// РЅР°Р№РґРµРЅРѕ Р·РЅР°С‡РµРЅРёРµ
                                         if (flag) unit = unit[j].value;
                                     };
                                 };
-                            } else {// есди это обычное поле
-                                flag = key in unit;// найдено значение
+                            } else {// РµСЃРґРё СЌС‚Рѕ РѕР±С‹С‡РЅРѕРµ РїРѕР»Рµ
+                                flag = key in unit;// РЅР°Р№РґРµРЅРѕ Р·РЅР°С‡РµРЅРёРµ
                                 if (flag) unit = unit[key];
                             };
                         };
-                        // возвращаем результат
+                        // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                         if (flag) return unit;
                         break;
-                    case "journal" == keys[0].toLowerCase():// журнал
-                        // формируем служебные идентификаторы
-                        id = "details";// идентификатор
+                    case "journal" == keys[0].toLowerCase():// Р¶СѓСЂРЅР°Р»
+                        // С„РѕСЂРјРёСЂСѓРµРј СЃР»СѓР¶РµР±РЅС‹Рµ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂС‹
+                        id = "details";// РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ
                         key = keys.shift().toLowerCase() + "s";
-                        attribute = keys.shift();// аттрибут для поиска значения
+                        attribute = keys.shift();// Р°С‚С‚СЂРёР±СѓС‚ РґР»СЏ РїРѕРёСЃРєР° Р·РЅР°С‡РµРЅРёСЏ
                         attribute = app.fun.getAttribute("original", attribute) || attribute;
-                        // выполняем поиск соответствий
-                        if (data && data[key]) {// если есть нужные данные
+                        // РІС‹РїРѕР»РЅСЏРµРј РїРѕРёСЃРє СЃРѕРѕС‚РІРµС‚СЃС‚РІРёР№
+                        if (data && data[key]) {// РµСЃР»Рё РµСЃС‚СЊ РЅСѓР¶РЅС‹Рµ РґР°РЅРЅС‹Рµ
                             for (var i = 0, iLen = data[key].length; i < iLen; i++) {
-                                if (data[key][i][id]) {// если есть нужные данные
+                                if (data[key][i][id]) {// РµСЃР»Рё РµСЃС‚СЊ РЅСѓР¶РЅС‹Рµ РґР°РЅРЅС‹Рµ
                                     for (var j = 0, jLen = data[key][i][id].length; j < jLen; j++) {
-                                        unit = data[key][i][id][j];// получаем очередной элимент
+                                        unit = data[key][i][id][j];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
                                         value = app.fun.str2val(keys[0] || "");
-                                        content = unit.new_value || "";// новое полное значение
-                                        // выполняем проверку на соответствие
+                                        content = unit.new_value || "";// РЅРѕРІРѕРµ РїРѕР»РЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
+                                        // РІС‹РїРѕР»РЅСЏРµРј РїСЂРѕРІРµСЂРєСѓ РЅР° СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ
                                         if (app.lib.validate(value, "boolean")) content = content ? true : false;
                                         flag = !app.lib.compare(value, content);
-                                        if (!flag && isNaN(value)) {// если не прошёл проверку на полное соответствие
-                                            content = "" + content;// приводим к единому типу
-                                            value = "" + value;// приводим к единому типу
-                                            value = value.toLowerCase();// переводим в нижний регистр
+                                        if (!flag && isNaN(value)) {// РµСЃР»Рё РЅРµ РїСЂРѕС€С‘Р» РїСЂРѕРІРµСЂРєСѓ РЅР° РїРѕР»РЅРѕРµ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ
+                                            content = "" + content;// РїСЂРёРІРѕРґРёРј Рє РµРґРёРЅРѕРјСѓ С‚РёРїСѓ
+                                            value = "" + value;// РїСЂРёРІРѕРґРёРј Рє РµРґРёРЅРѕРјСѓ С‚РёРїСѓ
+                                            value = value.toLowerCase();// РїРµСЂРµРІРѕРґРёРј РІ РЅРёР¶РЅРёР№ СЂРµРіРёСЃС‚СЂ
                                             flag = ~content.toLowerCase().indexOf(value);
                                         };
                                         flag = flag && (!attribute || attribute == unit.name);
@@ -520,53 +520,53 @@ var readmine = new App({
                                 };
                             };
                         };
-                        // возвращаем результат
+                        // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                         if (uid) return uid;
                         break;
                 };
             }
         },
-        method: {// поддерживаемые методы
+        method: {// РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ РјРµС‚РѕРґС‹
 
             /**
-             * Синхранизирует пользователей из ldap в приложение.
-             * @param {string} fields - Поля и их значения в формате id:value;id:value с шаблонизацией.
-             * @param {string} [container] - Контейнер пользователей в ldap.
-             * @param {string} [auth] - Режим аутентификации в приложении.
-             * @returns {number} Количество изменённых пользователей.
+             * РЎРёРЅС…СЂР°РЅРёР·РёСЂСѓРµС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РёР· ldap РІ РїСЂРёР»РѕР¶РµРЅРёРµ.
+             * @param {string} fields - РџРѕР»СЏ Рё РёС… Р·РЅР°С‡РµРЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ id:value;id:value СЃ С€Р°Р±Р»РѕРЅРёР·Р°С†РёРµР№.
+             * @param {string} [container] - РљРѕРЅС‚РµР№РЅРµСЂ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РІ ldap.
+             * @param {string} [auth] - Р РµР¶РёРј Р°СѓС‚РµРЅС‚РёС„РёРєР°С†РёРё РІ РїСЂРёР»РѕР¶РµРЅРёРё.
+             * @returns {number} РљРѕР»РёС‡РµСЃС‚РІРѕ РёР·РјРµРЅС‘РЅРЅС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№.
              */
 
             "users.sync": function (fields, container, auth) {
                 var data, list, unit, login, id, value, status, item,
                     items, user, users = {}, count = 0, error = 0;
 
-                // получаем соответствие полей
-                if (!error) {// если нету ошибок
+                // РїРѕР»СѓС‡Р°РµРј СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ РїРѕР»РµР№
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : {};
-                    for (var id in fields) {// пробегаемся по списку полученных полей
-                        value = fields[id];// получаем очередное значение
+                    for (var id in fields) {// РїСЂРѕР±РµРіР°РµРјСЃСЏ РїРѕ СЃРїРёСЃРєСѓ РїРѕР»СѓС‡РµРЅРЅС‹С… РїРѕР»РµР№
+                        value = fields[id];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
                         if (value) fields[id] = value.split('"').join("");
                     };
-                    if (// множественное условие
+                    if (// РјРЅРѕР¶РµСЃС‚РІРµРЅРЅРѕРµ СѓСЃР»РѕРІРёРµ
                         fields.login && fields.firstname
                         && fields.mail && fields.lastname
-                    ) {// если заполнены обязательные поля
+                    ) {// РµСЃР»Рё Р·Р°РїРѕР»РЅРµРЅС‹ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ
                     } else error = 1;
                 };
-                // получаем массив пользователей ldap
-                if (!error) {// если нету ошибок
+                // РїРѕР»СѓС‡Р°РµРј РјР°СЃСЃРёРІ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ ldap
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     value = "WHERE 'objectClass' = 'user'";
-                    items = app.wsh.getLDAP(value, container);
+                    items = app.wsh.ldap(value, container);
                 };
-                // преобразуем массив пользователей ldap в объект
-                if (!error) {// если нету ошибок
+                // РїСЂРµРѕР±СЂР°Р·СѓРµРј РјР°СЃСЃРёРІ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ ldap РІ РѕР±СЉРµРєС‚
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     for (var i = 0, iLen = items.length; i < iLen; i++) {
-                        item = items[i];// получаем очередной элимент
+                        item = items[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
                         user = app.fun.item2user(item, fields);
-                        if (// множественное условие
+                        if (// РјРЅРѕР¶РµСЃС‚РІРµРЅРЅРѕРµ СѓСЃР»РѕРІРёРµ
                             user.login && user.firstname && user.lastname
-                        ) {// если заполнены обязательные поля
-                            if (!user.mail) {// если у пользователя нет почты
+                        ) {// РµСЃР»Рё Р·Р°РїРѕР»РЅРµРЅС‹ РѕР±СЏР·Р°С‚РµР»СЊРЅС‹Рµ РїРѕР»СЏ
+                            if (!user.mail) {// РµСЃР»Рё Сѓ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РЅРµС‚ РїРѕС‡С‚С‹
                                 user.status = app.val.stLocked;
                                 delete user.mail;
                             };
@@ -575,212 +575,212 @@ var readmine = new App({
                         };
                     };
                 };
-                // получаем список пользователей в приложении
+                // РїРѕР»СѓС‡Р°РµРј СЃРїРёСЃРѕРє РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РІ РїСЂРёР»РѕР¶РµРЅРёРё
                 list = [app.val.stActive, app.val.stRegistered, app.val.stLocked];
                 for (var items = [], i = 0, iLen = list.length; !error && i < iLen; i++) {
-                    status = list[i];// получаем очередное значение статуса из списка значений
+                    status = list[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ СЃС‚Р°С‚СѓСЃР° РёР· СЃРїРёСЃРєР° Р·РЅР°С‡РµРЅРёР№
                     for (var data = null; !data || data.total_count > data.offset; data.offset += data.limit) {
-                        data = { offset: data ? data.offset : 0, status: status };// данные для запроса
-                        data = app.api("get", "users", data);// запрашиваем данные через api
-                        if (!data.users) data.users = [];// приводим данные к единому виду
+                        data = { offset: data ? data.offset : 0, status: status };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
+                        data = app.api("get", "users", data);// Р·Р°РїСЂР°С€РёРІР°РµРј РґР°РЅРЅС‹Рµ С‡РµСЂРµР· api
+                        if (!data.users) data.users = [];// РїСЂРёРІРѕРґРёРј РґР°РЅРЅС‹Рµ Рє РµРґРёРЅРѕРјСѓ РІРёРґСѓ
                         for (var j = 0, jLen = data.users.length; j < jLen; j++) {
-                            item = data.users[j]// получаем очередной элимент
-                            item.status = status;// задаём значение статуса
+                            item = data.users[j]// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
+                            item.status = status;// Р·Р°РґР°С‘Рј Р·РЅР°С‡РµРЅРёРµ СЃС‚Р°С‚СѓСЃР°
                             items.push(item);
                         };
                     };
                 };
-                // проверяем наличее пользователей
-                if (!error) {// если нету ошибок
-                    if (items.length) {// если есть пользователи
+                // РїСЂРѕРІРµСЂСЏРµРј РЅР°Р»РёС‡РµРµ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                    if (items.length) {// РµСЃР»Рё РµСЃС‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»Рё
                     } else error = 2;
                 };
-                // обновляем данные у пользователей приложения
-                if (!error) {// если нету ошибок
+                // РѕР±РЅРѕРІР»СЏРµРј РґР°РЅРЅС‹Рµ Сѓ РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№ РїСЂРёР»РѕР¶РµРЅРёСЏ
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     for (var i = 0, iLen = items.length; i < iLen; i++) {
-                        item = items[i];// получаем очередной элимент
+                        item = items[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
                         login = item.login.toLowerCase();
-                        user = users[login];// получаем пользователя
-                        if (user) {// если пользователь есть в ldap
+                        user = users[login];// РїРѕР»СѓС‡Р°РµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+                        if (user) {// РµСЃР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РµСЃС‚СЊ РІ ldap
                             unit = app.lib.difference(user, item, function (one, two) {
                                 return one.id == two.id && one.value != two.value;
                             });
-                            if (unit) {// если необходимо обновить данные
+                            if (unit) {// РµСЃР»Рё РЅРµРѕР±С…РѕРґРёРјРѕ РѕР±РЅРѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ
                                 if (auth) unit.auth_source_id = auth;
-                                data = { user: unit };// данные для запроса
+                                data = { user: unit };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
                                 data = app.api("put", "users/" + item.id, data);
-                                if (data.user) count++;// увеличиваем счётчик
+                                if (data.user) count++;// СѓРІРµР»РёС‡РёРІР°РµРј СЃС‡С‘С‚С‡РёРє
                             };
                             delete users[login];
                         };
                     };
                 };
-                // регистрируем новых пользователей
-                if (!error) {// если нету ошибок
-                    for (var login in users) {// пробигаемся по пользователям
-                        user = users[login];// получаем пользователя
-                        if (app.val.stActive == user.status) {// если активный пользователь
+                // СЂРµРіРёСЃС‚СЂРёСЂСѓРµРј РЅРѕРІС‹С… РїРѕР»СЊР·РѕРІР°С‚РµР»РµР№
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                    for (var login in users) {// РїСЂРѕР±РёРіР°РµРјСЃСЏ РїРѕ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏРј
+                        user = users[login];// РїРѕР»СѓС‡Р°РµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ
+                        if (app.val.stActive == user.status) {// РµСЃР»Рё Р°РєС‚РёРІРЅС‹Р№ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
                             if (auth) user.auth_source_id = auth;
-                            data = { user: user };// данные для запроса
+                            data = { user: user };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
                             data = app.api("post", "users", data);
-                            if (data.user) count++;// увеличиваем счётчик
+                            if (data.user) count++;// СѓРІРµР»РёС‡РёРІР°РµРј СЃС‡С‘С‚С‡РёРє
                         };
                         delete users[login];
                     };
                 };
-                // возвращаем результат
+                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                 return count;
             },
 
             /**
-             * Изменяет уже существующие задачи в сохранённом запросе.
-             * @param {number} [query] - Идентификатор сохранённого запроса для всех проектов.
-             * @param {string} fields - Изменяемые поля и их значения в формате id:value;id:value с шаблонизацией.
-             * @param {string} [filters] - Дополнительный фильтр в формате id:value;id:value с шаблонизацией.
-             * @returns {number} Количество изменённых задач.
+             * РР·РјРµРЅСЏРµС‚ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРµ Р·Р°РґР°С‡Рё РІ СЃРѕС…СЂР°РЅС‘РЅРЅРѕРј Р·Р°РїСЂРѕСЃРµ.
+             * @param {number} [query] - РРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ СЃРѕС…СЂР°РЅС‘РЅРЅРѕРіРѕ Р·Р°РїСЂРѕСЃР° РґР»СЏ РІСЃРµС… РїСЂРѕРµРєС‚РѕРІ.
+             * @param {string} fields - РР·РјРµРЅСЏРµРјС‹Рµ РїРѕР»СЏ Рё РёС… Р·РЅР°С‡РµРЅРёСЏ РІ С„РѕСЂРјР°С‚Рµ id:value;id:value СЃ С€Р°Р±Р»РѕРЅРёР·Р°С†РёРµР№.
+             * @param {string} [filters] - Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Р№ С„РёР»СЊС‚СЂ РІ С„РѕСЂРјР°С‚Рµ id:value;id:value СЃ С€Р°Р±Р»РѕРЅРёР·Р°С†РёРµР№.
+             * @returns {number} РљРѕР»РёС‡РµСЃС‚РІРѕ РёР·РјРµРЅС‘РЅРЅС‹С… Р·Р°РґР°С‡.
              */
 
             "issues.change": function (query, fields, filters) {
                 var key, value, filter, data, unit, flag, item, items,
                     watcher, watchers, index, count = 0, error = 0;
 
-                // получаем значения для изменяемых полей
-                if (!error) {// если нету ошибок
+                // РїРѕР»СѓС‡Р°РµРј Р·РЅР°С‡РµРЅРёСЏ РґР»СЏ РёР·РјРµРЅСЏРµРјС‹С… РїРѕР»РµР№
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : null;
-                    if (fields) {// если удалось получить список полей и значения для их изменения
-                        for (var id in fields) {// пробегаемся по списку полученных полей
-                            value = fields[id];// получаем очередное значение
+                    if (fields) {// РµСЃР»Рё СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє РїРѕР»РµР№ Рё Р·РЅР°С‡РµРЅРёСЏ РґР»СЏ РёС… РёР·РјРµРЅРµРЅРёСЏ
+                        for (var id in fields) {// РїСЂРѕР±РµРіР°РµРјСЃСЏ РїРѕ СЃРїРёСЃРєСѓ РїРѕР»СѓС‡РµРЅРЅС‹С… РїРѕР»РµР№
+                            value = fields[id];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
                             if (value) fields[id] = value.split('"').join("");
                         };
                     } else error = 1;
                 };
-                // получаем значения для фильтров
-                if (!error) {// если нету ошибок
+                // РїРѕР»СѓС‡Р°РµРј Р·РЅР°С‡РµРЅРёСЏ РґР»СЏ С„РёР»СЊС‚СЂРѕРІ
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     filters = filters ? app.lib.str2obj(filters, false, app.val.delimKey, app.val.delimVal) : null;
-                    if (filters) {// если удалось получить список фильтров и значения для них
-                        for (var id in filters) {// пробегаемся по списку полученных фильтров
-                            value = filters[id];// получаем очередное значение
+                    if (filters) {// РµСЃР»Рё СѓРґР°Р»РѕСЃСЊ РїРѕР»СѓС‡РёС‚СЊ СЃРїРёСЃРѕРє С„РёР»СЊС‚СЂРѕРІ Рё Р·РЅР°С‡РµРЅРёСЏ РґР»СЏ РЅРёС…
+                        for (var id in filters) {// РїСЂРѕР±РµРіР°РµРјСЃСЏ РїРѕ СЃРїРёСЃРєСѓ РїРѕР»СѓС‡РµРЅРЅС‹С… С„РёР»СЊС‚СЂРѕРІ
+                            value = filters[id];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
                             if (value) filters[id] = value.split('"').join("");
                         };
                     };
                 };
-                // получаем список задач в приложении
-                if (!error) {// если нету ошибок
+                // РїРѕР»СѓС‡Р°РµРј СЃРїРёСЃРѕРє Р·Р°РґР°С‡ РІ РїСЂРёР»РѕР¶РµРЅРёРё
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     for (var items = [], data = null; !data || data.total_count > data.offset; data.offset += data.limit) {
-                        data = { offset: data ? data.offset : 0 };// данные для запроса
-                        if (query) data.query_id = query;// фильтр по идентификатору запроса
-                        data = app.api("get", "issues", data);// запрашиваем данные через api
+                        data = { offset: data ? data.offset : 0 };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
+                        if (query) data.query_id = query;// С„РёР»СЊС‚СЂ РїРѕ РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂСѓ Р·Р°РїСЂРѕСЃР°
+                        data = app.api("get", "issues", data);// Р·Р°РїСЂР°С€РёРІР°РµРј РґР°РЅРЅС‹Рµ С‡РµСЂРµР· api
                         if (data.issues) items = items.concat(data.issues);
                     };
                 };
-                // выполняем действие над задачами
-                if (!error) {// если нету ошибок
+                // РІС‹РїРѕР»РЅСЏРµРј РґРµР№СЃС‚РІРёРµ РЅР°Рґ Р·Р°РґР°С‡Р°РјРё
+                if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                     for (var i = 0, iLen = items.length; i < iLen; i++) {
-                        item = items[i];// получаем очередной элимент
-                        // добавляем пользовательские ключи
-                        item["true"] = true;// для проверки наличия значения
-                        item["false"] = "";// для проверки отсутствия значения
-                        for (var key in item) {// пробигаемся по задаче
-                            unit = item[key];// запоминаем значение
+                        item = items[i];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
+                        // РґРѕР±Р°РІР»СЏРµРј РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРёРµ РєР»СЋС‡Рё
+                        item["true"] = true;// РґР»СЏ РїСЂРѕРІРµСЂРєРё РЅР°Р»РёС‡РёСЏ Р·РЅР°С‡РµРЅРёСЏ
+                        item["false"] = "";// РґР»СЏ РїСЂРѕРІРµСЂРєРё РѕС‚СЃСѓС‚СЃС‚РІРёСЏ Р·РЅР°С‡РµРЅРёСЏ
+                        for (var key in item) {// РїСЂРѕР±РёРіР°РµРјСЃСЏ РїРѕ Р·Р°РґР°С‡Рµ
+                            unit = item[key];// Р·Р°РїРѕРјРёРЅР°РµРј Р·РЅР°С‡РµРЅРёРµ
                             key = app.fun.getAttribute("custom", key);
                             if (key) item[key] = unit;
                         };
-                        // проверяем задачу на соответствие фильтрам
-                        flag = true;// задача удовлетворяет фильтрам
-                        if (filters) {// если нужно применить фильтры к задаче
-                            for (var id in filters) {// пробегаемся по полям
-                                filter = filters[id];// получаем очередное значение
-                                // получаем значение из конечного поля
-                                if (!isNaN(id)) {// если дополнительное поле
-                                    flag = false;// задача не удовлетворяет фильтру
+                        // РїСЂРѕРІРµСЂСЏРµРј Р·Р°РґР°С‡Сѓ РЅР° СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ С„РёР»СЊС‚СЂР°Рј
+                        flag = true;// Р·Р°РґР°С‡Р° СѓРґРѕРІР»РµС‚РІРѕСЂСЏРµС‚ С„РёР»СЊС‚СЂР°Рј
+                        if (filters) {// РµСЃР»Рё РЅСѓР¶РЅРѕ РїСЂРёРјРµРЅРёС‚СЊ С„РёР»СЊС‚СЂС‹ Рє Р·Р°РґР°С‡Рµ
+                            for (var id in filters) {// РїСЂРѕР±РµРіР°РµРјСЃСЏ РїРѕ РїРѕР»СЏРј
+                                filter = filters[id];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
+                                // РїРѕР»СѓС‡Р°РµРј Р·РЅР°С‡РµРЅРёРµ РёР· РєРѕРЅРµС‡РЅРѕРіРѕ РїРѕР»СЏ
+                                if (!isNaN(id)) {// РµСЃР»Рё РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРµ РїРѕР»Рµ
+                                    flag = false;// Р·Р°РґР°С‡Р° РЅРµ СѓРґРѕРІР»РµС‚РІРѕСЂСЏРµС‚ С„РёР»СЊС‚СЂСѓ
                                     list = item.custom_fields ? item.custom_fields : [];
                                     for (var j = 0, jLen = list.length; !flag && j < jLen; j++) {
-                                        unit = list[j];// получаем значение очередного поля
-                                        flag = unit.id == Number(id);// найдено значение
+                                        unit = list[j];// РїРѕР»СѓС‡Р°РµРј Р·РЅР°С‡РµРЅРёРµ РѕС‡РµСЂРµРґРЅРѕРіРѕ РїРѕР»СЏ
+                                        flag = unit.id == Number(id);// РЅР°Р№РґРµРЅРѕ Р·РЅР°С‡РµРЅРёРµ
                                         if (flag) value = unit.value;
                                     };
-                                } else {// если не дополнительное поле
-                                    value = data = item;// берём элимент для анализа
-                                    list = id.split(app.val.delimId);// получаем цепочку ключей
+                                } else {// РµСЃР»Рё РЅРµ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРµ РїРѕР»Рµ
+                                    value = data = item;// Р±РµСЂС‘Рј СЌР»РёРјРµРЅС‚ РґР»СЏ Р°РЅР°Р»РёР·Р°
+                                    list = id.split(app.val.delimId);// РїРѕР»СѓС‡Р°РµРј С†РµРїРѕС‡РєСѓ РєР»СЋС‡РµР№
                                     for (var j = 0, jLen = list.length; flag && j < jLen; j++) {
-                                        key = list[j];// получаем очередной ключ
-                                        flag = key in data;// найдено значение
+                                        key = list[j];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ РєР»СЋС‡
+                                        flag = key in data;// РЅР°Р№РґРµРЅРѕ Р·РЅР°С‡РµРЅРёРµ
                                         if (flag) value = data = data[key];
                                     };
                                 };
-                                // проверяем значение на соответствие фильтру
-                                if (flag) {// если есть что проверять
+                                // РїСЂРѕРІРµСЂСЏРµРј Р·РЅР°С‡РµРЅРёРµ РЅР° СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ С„РёР»СЊС‚СЂСѓ
+                                if (flag) {// РµСЃР»Рё РµСЃС‚СЊ С‡С‚Рѕ РїСЂРѕРІРµСЂСЏС‚СЊ
                                     if (filter) filter = app.lib.template(filter, item, app.fun.filter);
-                                    filter = app.fun.str2val(filter);// преобразовывает строку в значение
+                                    filter = app.fun.str2val(filter);// РїСЂРµРѕР±СЂР°Р·РѕРІС‹РІР°РµС‚ СЃС‚СЂРѕРєСѓ РІ Р·РЅР°С‡РµРЅРёРµ
                                     if (app.lib.validate(filter, "boolean")) value = value ? true : false;
                                     flag = !app.lib.compare(filter, value);
-                                    if (!flag && isNaN(filter)) {// если не прошёл проверку на полное соответствие
-                                        filter = "" + filter;// приводим к единому типу
-                                        value = "" + value;// приводим к единому типу
-                                        filter = filter.toLowerCase();// переводим в нижний регистр
+                                    if (!flag && isNaN(filter)) {// РµСЃР»Рё РЅРµ РїСЂРѕС€С‘Р» РїСЂРѕРІРµСЂРєСѓ РЅР° РїРѕР»РЅРѕРµ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ
+                                        filter = "" + filter;// РїСЂРёРІРѕРґРёРј Рє РµРґРёРЅРѕРјСѓ С‚РёРїСѓ
+                                        value = "" + value;// РїСЂРёРІРѕРґРёРј Рє РµРґРёРЅРѕРјСѓ С‚РёРїСѓ
+                                        filter = filter.toLowerCase();// РїРµСЂРµРІРѕРґРёРј РІ РЅРёР¶РЅРёР№ СЂРµРіРёСЃС‚СЂ
                                         flag = ~value.toLowerCase().indexOf(filter);
                                     };
                                 };
-                                // прерываем если не прошли проверку
+                                // РїСЂРµСЂС‹РІР°РµРј РµСЃР»Рё РЅРµ РїСЂРѕС€Р»Рё РїСЂРѕРІРµСЂРєСѓ
                                 if (!flag) break;
                             };
                         };
-                        // готовим данные для обновления
-                        if (flag) {// если нужно подготовить данные
-                            unit = null;// сбрасываем значение
-                            index = 0;// счётчик колличества полей
-                            for (var id in fields) {// пробегаемся по полям
-                                if (!unit) unit = {};// создаём объект для данных
-                                // формируем значение
-                                value = fields[id];// получаем очередное значение
+                        // РіРѕС‚РѕРІРёРј РґР°РЅРЅС‹Рµ РґР»СЏ РѕР±РЅРѕРІР»РµРЅРёСЏ
+                        if (flag) {// РµСЃР»Рё РЅСѓР¶РЅРѕ РїРѕРґРіРѕС‚РѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ
+                            unit = null;// СЃР±СЂР°СЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ
+                            index = 0;// СЃС‡С‘С‚С‡РёРє РєРѕР»Р»РёС‡РµСЃС‚РІР° РїРѕР»РµР№
+                            for (var id in fields) {// РїСЂРѕР±РµРіР°РµРјСЃСЏ РїРѕ РїРѕР»СЏРј
+                                if (!unit) unit = {};// СЃРѕР·РґР°С‘Рј РѕР±СЉРµРєС‚ РґР»СЏ РґР°РЅРЅС‹С…
+                                // С„РѕСЂРјРёСЂСѓРµРј Р·РЅР°С‡РµРЅРёРµ
+                                value = fields[id];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
                                 if (value) value = app.lib.template(value, item, app.fun.filter);
                                 value = app.fun.str2val(value);
-                                // унифицируем идентификатор
+                                // СѓРЅРёС„РёС†РёСЂСѓРµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ
                                 id = app.fun.getAttribute("original", id) || id;
-                                // обрабатываем специализированные поля
-                                switch (id) {// поддерживаемые поля
-                                    case "watcher":// наблюдатель
-                                        // проверяем значение
-                                        if (value) {// если требуются изменения 
-                                            if (!isNaN(value)) {// если проверка пройдена
+                                // РѕР±СЂР°Р±Р°С‚С‹РІР°РµРј СЃРїРµС†РёР°Р»РёР·РёСЂРѕРІР°РЅРЅС‹Рµ РїРѕР»СЏ
+                                switch (id) {// РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Рµ РїРѕР»СЏ
+                                    case "watcher":// РЅР°Р±Р»СЋРґР°С‚РµР»СЊ
+                                        // РїСЂРѕРІРµСЂСЏРµРј Р·РЅР°С‡РµРЅРёРµ
+                                        if (value) {// РµСЃР»Рё С‚СЂРµР±СѓСЋС‚СЃСЏ РёР·РјРµРЅРµРЅРёСЏ 
+                                            if (!isNaN(value)) {// РµСЃР»Рё РїСЂРѕРІРµСЂРєР° РїСЂРѕР№РґРµРЅР°
                                                 value = Number(value);
                                             } else value = false;
                                         };
-                                        // получаем список наблюдателей
-                                        if (value) {// если требуются изменения 
-                                            data = { include: "watchers" };// данные для запроса
+                                        // РїРѕР»СѓС‡Р°РµРј СЃРїРёСЃРѕРє РЅР°Р±Р»СЋРґР°С‚РµР»РµР№
+                                        if (value) {// РµСЃР»Рё С‚СЂРµР±СѓСЋС‚СЃСЏ РёР·РјРµРЅРµРЅРёСЏ 
+                                            data = { include: "watchers" };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
                                             data = app.api("get", "issues/" + item.id, data);
-                                            if (data.issue && data.issue.watchers) {// если наблюдатели получены
-                                                watchers = data.issue.watchers;// массив наблюдателей
+                                            if (data.issue && data.issue.watchers) {// РµСЃР»Рё РЅР°Р±Р»СЋРґР°С‚РµР»Рё РїРѕР»СѓС‡РµРЅС‹
+                                                watchers = data.issue.watchers;// РјР°СЃСЃРёРІ РЅР°Р±Р»СЋРґР°С‚РµР»РµР№
                                             } else value = false;
                                         };
-                                        // ищем наблюдателя в списке
-                                        if (value) {// если требуются изменения 
-                                            watcher = null;// сбрасываем значение
+                                        // РёС‰РµРј РЅР°Р±Р»СЋРґР°С‚РµР»СЏ РІ СЃРїРёСЃРєРµ
+                                        if (value) {// РµСЃР»Рё С‚СЂРµР±СѓСЋС‚СЃСЏ РёР·РјРµРЅРµРЅРёСЏ 
+                                            watcher = null;// СЃР±СЂР°СЃС‹РІР°РµРј Р·РЅР°С‡РµРЅРёРµ
                                             for (var j = 0, jLen = watchers.length; !watcher && j < jLen; j++) {
-                                                watcher = watchers[j];// получаем очередной элимент
+                                                watcher = watchers[j];// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕР№ СЌР»РёРјРµРЅС‚
                                                 if (Math.abs(value) != watcher.id) watcher = null;
                                             };
                                         };
-                                        // добавляем или удаляем наблюдателя
-                                        if (value) {// если требуются изменения 
-                                            if (value > 0 && !watcher) {// если нужно добавить
-                                                data = { user_id: value };// данные
-                                                data = { watcher: data };// данные для запроса
+                                        // РґРѕР±Р°РІР»СЏРµРј РёР»Рё СѓРґР°Р»СЏРµРј РЅР°Р±Р»СЋРґР°С‚РµР»СЏ
+                                        if (value) {// РµСЃР»Рё С‚СЂРµР±СѓСЋС‚СЃСЏ РёР·РјРµРЅРµРЅРёСЏ 
+                                            if (value > 0 && !watcher) {// РµСЃР»Рё РЅСѓР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ
+                                                data = { user_id: value };// РґР°РЅРЅС‹Рµ
+                                                data = { watcher: data };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
                                                 data = app.api("post", "issues/" + item.id + "/watchers", data);
                                             };
-                                            if (value < 0 && watcher) {// если нужно удалить
+                                            if (value < 0 && watcher) {// РµСЃР»Рё РЅСѓР¶РЅРѕ СѓРґР°Р»РёС‚СЊ
                                                 value = Math.abs(value);
                                                 data = app.api("delete", "issues/" + item.id + "/watchers/" + value);
                                             };
                                         };
-                                        // завершаем обработку
+                                        // Р·Р°РІРµСЂС€Р°РµРј РѕР±СЂР°Р±РѕС‚РєСѓ
                                         id = null;
                                         break;
                                 };
-                                // присваиваем значение
-                                if (id) {// если идентификатор не сброшен
-                                    if (!isNaN(id)) {// если дополнительное поле
+                                // РїСЂРёСЃРІР°РёРІР°РµРј Р·РЅР°С‡РµРЅРёРµ
+                                if (id) {// РµСЃР»Рё РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РЅРµ СЃР±СЂРѕС€РµРЅ
+                                    if (!isNaN(id)) {// РµСЃР»Рё РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРµ РїРѕР»Рµ
                                         if (!unit.custom_fields) unit.custom_fields = [];
                                         unit.custom_fields.push({ id: id, value: value });
                                     } else unit[id] = value;
@@ -788,124 +788,124 @@ var readmine = new App({
                                 };
                             };
                         };
-                        // обновляем данные в заявке
-                        if (flag && index) {// если необходимо обновить данные
-                            data = { issue: unit };// данные для запроса
+                        // РѕР±РЅРѕРІР»СЏРµРј РґР°РЅРЅС‹Рµ РІ Р·Р°СЏРІРєРµ
+                        if (flag && index) {// РµСЃР»Рё РЅРµРѕР±С…РѕРґРёРјРѕ РѕР±РЅРѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ
+                            data = { issue: unit };// РґР°РЅРЅС‹Рµ РґР»СЏ Р·Р°РїСЂРѕСЃР°
                             data = app.api("put", "issues/" + item.id, data);
-                            if (data.issue) count++;// увеличиваем счётчик
+                            if (data.issue) count++;// СѓРІРµР»РёС‡РёРІР°РµРј СЃС‡С‘С‚С‡РёРє
                         };
                     };
                 };
-                // возвращаем результат
+                // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
                 return count;
             }
         },
 
         /**
-         * Программный интерфейс взаимодействия с приложением.
-         * @param {string} [method] - Метод http для запроса.
-         * @param {string} request - Адрес uri запроса без расширения.
-         * @param {object} [data] - Данные отправляемые в запросе.
-         * @returns {object} Данные которые вернуло приложение.
+         * РџСЂРѕРіСЂР°РјРјРЅС‹Р№ РёРЅС‚РµСЂС„РµР№СЃ РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёСЏ СЃ РїСЂРёР»РѕР¶РµРЅРёРµРј.
+         * @param {string} [method] - РњРµС‚РѕРґ http РґР»СЏ Р·Р°РїСЂРѕСЃР°.
+         * @param {string} request - РђРґСЂРµСЃ uri Р·Р°РїСЂРѕСЃР° Р±РµР· СЂР°СЃС€РёСЂРµРЅРёСЏ.
+         * @param {object} [data] - Р”Р°РЅРЅС‹Рµ РѕС‚РїСЂР°РІР»СЏРµРјС‹Рµ РІ Р·Р°РїСЂРѕСЃРµ.
+         * @returns {object} Р”Р°РЅРЅС‹Рµ РєРѕС‚РѕСЂС‹Рµ РІРµСЂРЅСѓР»Рѕ РїСЂРёР»РѕР¶РµРЅРёРµ.
          */
 
         api: function (method, request, data) {
             var xhr, url, flag, head, response = {}, error = 0;
 
-            // определяем необходимость конвертации данных
-            if (!error) {// если нету ошибок
-                switch (method.toLowerCase()) {// совместимые методы
+            // РѕРїСЂРµРґРµР»СЏРµРј РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚СЊ РєРѕРЅРІРµСЂС‚Р°С†РёРё РґР°РЅРЅС‹С…
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                switch (method.toLowerCase()) {// СЃРѕРІРјРµСЃС‚РёРјС‹Рµ РјРµС‚РѕРґС‹
                     case "get": flag = false; break;
                     case "head": flag = false; break;
                     case "delete": flag = false; break;
                     default: flag = true;
                 };
             };
-            // конвертируем отправляемые данные
-            if (!error && data && flag) {// если нужно выполнить
+            // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј РѕС‚РїСЂР°РІР»СЏРµРјС‹Рµ РґР°РЅРЅС‹Рµ
+            if (!error && data && flag) {// РµСЃР»Рё РЅСѓР¶РЅРѕ РІС‹РїРѕР»РЅРёС‚СЊ
                 data = app.fun.obj2xml(data);
-                if (data) {// если данные сконвертированы
+                if (data) {// РµСЃР»Рё РґР°РЅРЅС‹Рµ СЃРєРѕРЅРІРµСЂС‚РёСЂРѕРІР°РЅС‹
                 } else error = 1;
             };
-            // делаем запрос на сервер
-            if (!error) {// если нету ошибок
+            // РґРµР»Р°РµРј Р·Р°РїСЂРѕСЃ РЅР° СЃРµСЂРІРµСЂ
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                 url = app.val.apiUrl + request + ".xml";
-                head = {// заголовки запроса
+                head = {// Р·Р°РіРѕР»РѕРІРєРё Р·Р°РїСЂРѕСЃР°
                     "Cache-Control": "no-store",
                     "If-None-Match": "empty"
                 };
-                if (app.val.apiKey) {// если задан ключ для api
+                if (app.val.apiKey) {// РµСЃР»Рё Р·Р°РґР°РЅ РєР»СЋС‡ РґР»СЏ api
                     head["X-Redmine-API-Key"] = app.val.apiKey;
                 };
                 xhr = app.lib.sjax(method, url, head, data);
                 data = xhr.responseXML;
-                if (app.lib.validate(data, 'xml')) {// если ответ получен
+                if (app.lib.validate(data, 'xml')) {// РµСЃР»Рё РѕС‚РІРµС‚ РїРѕР»СѓС‡РµРЅ
                 } else error = 2;
             };
-            // конвертируем полученные данные
-            if (!error) {// если нету ошибок
+            // РєРѕРЅРІРµСЂС‚РёСЂСѓРµРј РїРѕР»СѓС‡РµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                 data = app.fun.xml2obj(xhr.responseXML);
-                if (data) {// если данные сконвертированы
+                if (data) {// РµСЃР»Рё РґР°РЅРЅС‹Рµ СЃРєРѕРЅРІРµСЂС‚РёСЂРѕРІР°РЅС‹
                     response = data;
                 } else error = 3;
             };
-            // возвращаем результат
+            // РІРѕР·РІСЂР°С‰Р°РµРј СЂРµР·СѓР»СЊС‚Р°С‚
             return response;
         },
-        init: function () {// функция инициализации приложения
+        init: function () {// С„СѓРЅРєС†РёСЏ РёРЅРёС†РёР°Р»РёР·Р°С†РёРё РїСЂРёР»РѕР¶РµРЅРёСЏ
             var value, key, flag, method, list = [], count = 0,
                 index = 0, error = 0;
 
-            // получаем адрес для запросов к api
-            if (!error) {// если нету ошибок
-                if (index < wsh.arguments.length) {// если передан параметр
-                    value = wsh.arguments(index);// получаем очередное значени
-                    if (value) {// если получено не пустое значение
-                        key = "/";// обязательное окончание адреса для запросов 
+            // РїРѕР»СѓС‡Р°РµРј Р°РґСЂРµСЃ РґР»СЏ Р·Р°РїСЂРѕСЃРѕРІ Рє api
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                if (index < wsh.arguments.length) {// РµСЃР»Рё РїРµСЂРµРґР°РЅ РїР°СЂР°РјРµС‚СЂ
+                    value = wsh.arguments(index);// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРё
+                    if (value) {// РµСЃР»Рё РїРѕР»СѓС‡РµРЅРѕ РЅРµ РїСѓСЃС‚РѕРµ Р·РЅР°С‡РµРЅРёРµ
+                        key = "/";// РѕР±СЏР·Р°С‚РµР»СЊРЅРѕРµ РѕРєРѕРЅС‡Р°РЅРёРµ Р°РґСЂРµСЃР° РґР»СЏ Р·Р°РїСЂРѕСЃРѕРІ 
                         flag = key != value.substr(value.length - key.length);
-                        if (flag) value += key;// добавляем окончание
+                        if (flag) value += key;// РґРѕР±Р°РІР»СЏРµРј РѕРєРѕРЅС‡Р°РЅРёРµ
                         app.val.apiUrl = value;
                     } else error = 2;
                 } else error = 1;
                 index++;
             };
-            // получаем ключ для запросов к api
-            if (!error) {// если нету ошибок
-                if (index < wsh.arguments.length) {// если передан параметр
-                    value = wsh.arguments(index);// получаем очередное значени
-                    if (value) {// если получено не пустое значение
+            // РїРѕР»СѓС‡Р°РµРј РєР»СЋС‡ РґР»СЏ Р·Р°РїСЂРѕСЃРѕРІ Рє api
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                if (index < wsh.arguments.length) {// РµСЃР»Рё РїРµСЂРµРґР°РЅ РїР°СЂР°РјРµС‚СЂ
+                    value = wsh.arguments(index);// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРё
+                    if (value) {// РµСЃР»Рё РїРѕР»СѓС‡РµРЅРѕ РЅРµ РїСѓСЃС‚РѕРµ Р·РЅР°С‡РµРЅРёРµ
                         app.val.apiKey = value;
                     } else error = 4;
                 } else error = 3;
                 index++;
             };
-            // получаем идентификатор метода
-            if (!error) {// если нету ошибок
-                if (index < wsh.arguments.length) {// если передан параметр
-                    value = wsh.arguments(index);// получаем очередное значени
-                    method = app.method[value];// получаем функцию метода
-                    if (method) {// если метод поддерживается
+            // РїРѕР»СѓС‡Р°РµРј РёРґРµРЅС‚РёС„РёРєР°С‚РѕСЂ РјРµС‚РѕРґР°
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
+                if (index < wsh.arguments.length) {// РµСЃР»Рё РїРµСЂРµРґР°РЅ РїР°СЂР°РјРµС‚СЂ
+                    value = wsh.arguments(index);// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРё
+                    method = app.method[value];// РїРѕР»СѓС‡Р°РµРј С„СѓРЅРєС†РёСЋ РјРµС‚РѕРґР°
+                    if (method) {// РµСЃР»Рё РјРµС‚РѕРґ РїРѕРґРґРµСЂР¶РёРІР°РµС‚СЃСЏ
                     } else error = 6;
                 } else error = 5;
                 index++;
             };
-            // формируем список параметров для вызова метода
-            if (!error) {// если нету ошибок
+            // С„РѕСЂРјРёСЂСѓРµРј СЃРїРёСЃРѕРє РїР°СЂР°РјРµС‚СЂРѕРІ РґР»СЏ РІС‹Р·РѕРІР° РјРµС‚РѕРґР°
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                 for (var i = index, iLen = wsh.arguments.length; i < iLen; i++) {
-                    value = wsh.arguments(i);// получаем очередное значение
-                    list.push(value);// добавляем значение в список
+                    value = wsh.arguments(i);// РїРѕР»СѓС‡Р°РµРј РѕС‡РµСЂРµРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ
+                    list.push(value);// РґРѕР±Р°РІР»СЏРµРј Р·РЅР°С‡РµРЅРёРµ РІ СЃРїРёСЃРѕРє
                 };
             };
-            // выполняем поддерживаемый метод
-            if (!error) {// если нету ошибок
+            // РІС‹РїРѕР»РЅСЏРµРј РїРѕРґРґРµСЂР¶РёРІР°РµРјС‹Р№ РјРµС‚РѕРґ
+            if (!error) {// РµСЃР»Рё РЅРµС‚Сѓ РѕС€РёР±РѕРє
                 count = method.apply(app, list);
             };
-            // завершаем сценарий кодом
+            // Р·Р°РІРµСЂС€Р°РµРј СЃС†РµРЅР°СЂРёР№ РєРѕРґРѕРј
             value = error ? -1 * error : count;
             wsh.quit(value);
         }
     });
 })(readmine, WSH);
 
-// инициализируем приложение
+// РёРЅРёС†РёР°Р»РёР·РёСЂСѓРµРј РїСЂРёР»РѕР¶РµРЅРёРµ
 readmine.init();
