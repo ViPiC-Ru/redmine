@@ -1,19 +1,25 @@
-/* 0.2.0 взаимодействие с redmine по средствам api
+/* 0.2.1 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
+cscript redmine.min.js <instance> issues.sync <destination> <query> [<filters>] <fields>
 cscript redmine.min.js <instance> issues.change [<query>] [<filters>] <fields>
 
-<instance>          - Адрес для подключения к Redmine в формате url (с указанием логина, пароля или ключа во фрагменте).
-<method>            - Собственный метод, который нужно выполнить.
-    users.sync      - Синхронизация пользователей из источника данных.
-        <source>    - Адрес для подключения к Active Directory в формате url (поддерживается протокол ldap).
-        <fields>    - Поля и их значения в источнике в формате ID:value;id:value с шаблонизацией.
-        <auth>      - Идентификатор режима аутентификации в Redmine.
-    issues.change   - Изменение задач в Redmine.
-        <query>     - Идентификатор сохранённого запроса для всех проектов.
-        <filters>   - Фильтр в формате id:value;id:value с шаблонизацией.
-        <fields>    - Поля и их значения в формате id:value;id:value с шаблонизацией.
+<instance>              - Адрес для подключения к Redmine в формате url (с указанием логина, пароля или ключа во фрагменте).
+<method>                - Собственный метод, который нужно выполнить.
+    users.sync          - Синхранизация пользователей из источника данных.
+        <source>        - Адрес для подключения к Active Directory в формате url (поддерживается протокол ldap).
+        <fields>        - Поля и их значения в источнике в формате ID:value;id:value с шаблонизацией.
+        <auth>          - Идентификатор режима аутентификации в Redmine.
+    issues.sync         - Синхранизация задач в приёмник данных.
+        <destination>   - Адрес для подключения к Cherwell в формате url (с указанием логина, пароля или клиента во фрагменте).
+        <query>         - Идентификатор сохранённого запроса для всех проектов в Redmine и Cherwell.
+        <filters>       - Фильтр в формате id:value,value;id:value,value с шаблонизацией.
+        <fields>        - Поля и их значения в формате id:value;id:value с шаблонизацией.
+    issues.change       - Изменение задач в Redmine.
+        <query>         - Идентификатор сохранённого запроса для всех проектов.
+        <filters>       - Фильтр в формате id:value,value;id:value,value с шаблонизацией.
+        <fields>        - Поля и их значения в формате id:value;id:value с шаблонизацией.
 
 */
 
@@ -22,12 +28,19 @@ var readmine = new App({
     apiReadmineKey: null,           // ключ доступа к api readmine
     apiReadmineUser: null,          // логин для доступа к api readmine
     apiReadminePassword: null,      // пароль для доступа к api readmine
+    apiCherwellUrl: null,           // базовый url для запросов к api cherwell
+    apiCherwellClient: null,        // идентификатор клиента для доступа к api cherwell
+    apiCherwellUser: null,          // логин для доступа к api cherwell
+    apiCherwellPassword: null,      // пароль для доступа к api cherwell
+    apiCherwellToken: null,         // токен для взаимодействия с api cherwell
     apiADPath: null,                // базовый путь для запросов к active directory
     userActive: 1,                  // статус активного пользователя
     userRegistered: 2,              // статус зарегистрированного пользователя
     userLocked: 3,                  // статус заблокированного пользователя
     delimVal: ":",                  // разделитель значения от ключа
     delimKey: ";",                  // разделитель ключей между собой
+    delimParam: ",",                // разделитель параметров между собой
+    delimMap: "=",                  // разделитель соответствия
     delimId: "."                    // разделитель идентификаторов в ключе
 });
 
@@ -368,16 +381,25 @@ var readmine = new App({
              */
 
             filter: function (name, data) {
-                var id, uid, value, attribute, key, keys,
-                    length, content, unit, flag, list;
+                var id, uid, value, attribute, key, keys, fragment, flag, list,
+                    startFragment, endFragment, length, content, unit, params = [];
 
                 name = name ? "" + name : "";
-                value = name.split("][").join(app.val.delimId);
-                value = value.split("[").join(app.val.delimId);
-                value = value.split("]").join("");
-                value = value.split('"').join("");
-                value = value.split("'").join("");
-                keys = value.split(app.val.delimId);
+                // парсим переданные параметры для фильтра
+                startFragment = "("; endFragment = ")";
+                if (name.indexOf(endFragment) > name.indexOf(startFragment)) {
+                    fragment = app.lib.strim(name, startFragment, endFragment, false, false);
+                    fragment = fragment.split('"').join("").split("'").join("");
+                    name = app.lib.strim(name, "", startFragment, false, false);
+                    params = fragment.split(app.val.delimParam);
+                };
+                // парсим цепочку ключей в имени фильтра
+                startFragment = "["; endFragment = "]";
+                fragment = name.split(endFragment + startFragment).join(app.val.delimId);
+                fragment = fragment.split(startFragment).join(app.val.delimId);
+                fragment = fragment.split(endFragment).join("");
+                fragment = fragment.split('"').join("").split("'").join("");
+                keys = fragment.split(app.val.delimId);
                 switch (true) {// поддерживаемые форматы
                     case "phone" == name.toLowerCase():// телефонный номер
                         // очищаем значение
@@ -436,7 +458,27 @@ var readmine = new App({
                         // очищаем значение
                         value = data ? app.lib.trim("" + data) : "";
                         // форматируем значение
-                        value = (flag = value) ? "true" : null;
+                        flag = true;// нужно ли вернуть значение
+                        if (value) value = params.length > 0 ? (params[0] || value) : "true";
+                        else value = params.length > 1 ? (params[1] || (flag = false)) : "false";
+                        // возвращаем результат
+                        if (flag) return value;
+                        break;
+                    case "map" == name.toLowerCase():// мапинг значений
+                        // очищаем значение
+                        value = data ? app.lib.trim("" + data) : "";
+                        // форматируем значение
+                        flag = false;// найдено ли совпадение
+                        for (var i = 0, iLen = params.length; i < iLen; i++) {
+                            if (~params[i].indexOf(app.val.delimMap)) {// если есть разделитель
+                                key = app.lib.strim(params[i], "", app.val.delimMap, false, false);
+                                if (value == key || !value && !key) {// если найдено совпадение
+                                    value = app.lib.strim(params[i], app.val.delimMap, "", false, false);
+                                    flag = true;
+                                    break;
+                                };
+                            };
+                        };
                         // возвращаем результат
                         if (flag) return value;
                         break;
@@ -489,7 +531,8 @@ var readmine = new App({
                         // формируем служебные идентификаторы
                         id = "details";// идентификатор
                         key = keys.shift().toLowerCase() + "s";
-                        attribute = keys.shift();// аттрибут для поиска значения
+                        value = keys.pop();// значение которое должно быть аттрибута
+                        attribute = keys.join(app.val.delimId);// аттрибут для поиска значения
                         attribute = app.fun.getAttribute("original", attribute) || attribute;
                         // выполняем поиск соответствий
                         if (data && data[key]) {// если есть нужные данные
@@ -497,16 +540,13 @@ var readmine = new App({
                                 if (data[key][i][id]) {// если есть нужные данные
                                     for (var j = 0, jLen = data[key][i][id].length; j < jLen; j++) {
                                         unit = data[key][i][id][j];// получаем очередной элимент
-                                        value = app.fun.str2val(keys[0] || "");
-                                        content = unit.new_value || "";// новое полное значение
+                                        content = unit.new_value || "";// новое полное значение аттрибута
                                         // выполняем проверку на соответствие
-                                        if (app.lib.validate(value, "boolean")) content = content ? true : false;
-                                        flag = !app.lib.compare(value, content);
-                                        if (!flag && isNaN(value)) {// если не прошёл проверку на полное соответствие
-                                            content = "" + content;// приводим к единому типу
-                                            value = "" + value;// приводим к единому типу
-                                            value = value.toLowerCase();// переводим в нижний регистр
-                                            flag = ~content.toLowerCase().indexOf(value);
+                                        content = app.fun.str2val(content);// преобразовывает строку в значение
+                                        flag = app.lib.validate(content, "boolean");// нужно ли преобразовать значение
+                                        flag = !app.lib.compare(content, flag ? (value ? true : false) : value);
+                                        if (!flag && isNaN(content)) {// если не прошёл проверку на полное соответствие
+                                            flag = app.lib.hasValue("" + value, content, false);
                                         };
                                         flag = flag && (!attribute || attribute == unit.name);
                                         if (flag) uid = data[key][i].user.id;
@@ -563,12 +603,12 @@ var readmine = new App({
                     fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : {};
                     for (var id in fields) {// пробегаемся по списку полученных полей
                         value = fields[id];// получаем очередное значение
-                        if (value) fields[id] = value.split('"').join("");
+                        if (value) fields[id] = value.split('"').join("").split("'").join("");
                         if (!primary) primary = id;
                     };
                     if (// множественное условие
-                        fields.login && fields.firstname
-                        && fields.mail && fields.lastname
+                        fields["login"] && fields["firstname"]
+                        && fields["mail"] && fields["lastname"]
                     ) {// если заполнены обязательные поля
                     } else error = 8;
                 };
@@ -589,7 +629,7 @@ var readmine = new App({
                                 delete user.mail;
                             };
                             id = user[primary].toLowerCase();
-                            users[id] = user;
+                            if (id) users[id] = user;
                         };
                     };
                 };
@@ -649,29 +689,52 @@ var readmine = new App({
             },
 
             /**
-             * Изменяет уже существующие задачи в сохранённом запросе.
-             * @param {number} [query] - Идентификатор сохранённого запроса для всех проектов.
-             * @param {string} [filters] - Дополнительный фильтр в формате id:value;id:value с шаблонизацией.
-             * @param {string} fields - Изменяемые поля и их значения в формате id:value;id:value с шаблонизацией.
+             * Синхранизация задач в приёмник данных.
+             * @param {string} destination - Параметры для подключения к cherwell в формате url.
+             * @param {number} query - Идентификатор сохранённого запроса для всех проектов и двух систем.
+             * @param {string} [filters] - Дополнительный фильтр в формате id:value,value;id:value,value с шаблонизацией.
+             * @param {string} fields - Поля и их значения в формате в формате id:value;id:value с шаблонизацией.
              * @returns {number} Номер ошибки или нулевое значение.
              */
 
-            "issues.change": function (query, filters, fields) {
-                var key, value, filter, data, unit, flag, item, items,
-                    watcher, watchers, index, error = 0;
+            "issues.sync": function (destination, query, filters, fields) {
+                var key, value, filter, data, unit, flag, item, items, index,
+                    ownerId, busObId, fieldId, primary, id, isFound, list,
+                    ticket, tickets = {}, map = {}, error = 0;
 
                 // корректируем порядок входных параметров
-                if (isNaN(query)) { fields = filters; filters = query; query = null; };
                 if (!fields) { fields = filters; filters = null; };
-                // получаем значения для изменяемых полей
+                // проверяем указание идентификатора запроса
                 if (!error) {// если нету ошибок
-                    fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : null;
-                    if (fields) {// если удалось получить список полей и значения для их изменения
-                        for (var id in fields) {// пробегаемся по списку полученных полей
-                            value = fields[id];// получаем очередное значение
-                            if (value) fields[id] = value.split('"').join("");
-                        };
+                    if (query && !isNaN(query)) {// если параметр прошёл проверку
                     } else error = 7;
+                };
+                // получаяем данные для взаимодействия с приёмником
+                if (!error) {// если нету ошибок
+                    destination = app.lib.url2obj(destination);
+                    // получаем информацию о key
+                    if (!error) {// если нету ошибок
+                        if (destination.fragment) {// если параметр прошёл проверку
+                            app.val.apiCherwellClient = destination.fragment;
+                            delete destination.fragment;
+                        } else error = 8;
+                    };
+                    // получаем информацию о логине и пароле
+                    if (!error) {// если нету ошибок
+                        if (destination.password && destination.user) {// если параметр прошёл проверку
+                            app.val.apiCherwellUser = destination.user;
+                            app.val.apiCherwellPassword = destination.password;
+                            delete destination.password;
+                            delete destination.user;
+                        } else error = 9;
+                    };
+                    // получаем информацию о базавом url
+                    if (!error) {// если нету ошибок
+                        if (destination.scheme && destination.domain) {// если параметр прошёл проверку
+                            destination.path = app.fun.fixUrlPath(destination.path);
+                            app.val.apiCherwellUrl = app.lib.obj2url(destination);
+                        } else error = 10;
+                    };
                 };
                 // получаем значения для фильтров
                 if (!error) {// если нету ошибок
@@ -679,8 +742,82 @@ var readmine = new App({
                     if (filters) {// если удалось получить список фильтров и значения для них
                         for (var id in filters) {// пробегаемся по списку полученных фильтров
                             value = filters[id];// получаем очередное значение
-                            if (value) filters[id] = value.split('"').join("");
+                            if (value) filters[id] = value.split('"').join("").split("'").join("");
                         };
+                    };
+                };
+                // получаем соответствие полей
+                if (!error) {// если нету ошибок
+                    fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : {};
+                    for (var id in fields) {// пробегаемся по списку полученных полей
+                        value = fields[id];// получаем очередное значение
+                        if (value) fields[id] = value.split('"').join("").split("'").join("");
+                        if (!primary) primary = id;
+                    };
+                    if (// множественное условие
+                        fields["SuppliersReference"] && !fields["IncidentID"]
+                    ) {// если заполнены обязательные поля
+                    } else error = 11;
+                };
+                // получаем идентификатор пользователя
+                if (!error) {// если нету ошибок
+                    data = app.api.cherwell("get", "getuserbyloginid/loginid/" + app.val.apiCherwellUser);
+                    if (data.recordId) {// если данные получены
+                        ownerId = data.recordId;
+                    } else error = 12;
+                };
+                // получаем идентификатор класса для тикетов
+                if (!error) {// если нету ошибок
+                    data = app.api.cherwell("get", "getbusinessobjectsummary/busobname/Incident");
+                    if (data.length && data[0].busObId) {// если данные получены
+                        busObId = data[0].busObId;
+                    } else error = 13;
+                };
+                // получаем список полей для тикетов 
+                if (!error) {// если нету ошибок
+                    data = app.api.cherwell("get", "getbusinessobjectschema/busobid/" + busObId);
+                    if (data.fieldDefinitions) {// если данные получены
+                        items = data.fieldDefinitions;// задаём список
+                        map.fields = {};// сбрасываем значение
+                        for (var id in fields) {// пробегаемся по списку полученных полей
+                            isFound = false;// сбрасываем значение
+                            list = [id, "IncidentID"];// список идентификаторов
+                            for (var i = 0, iLen = items.length; i < iLen; i++) {
+                                item = items[i];// получаем очередной элимент
+                                for (var j = 0, jLen = list.length; j < jLen; j++) {
+                                    key = list[j];// получаем очередной идентификатор
+                                    if (item.name == key) {// если найдено совпадение
+                                        map.fields[item.name] = item.fieldId;
+                                        if (!j) isFound = true;
+                                    };
+                                };
+                            };
+                            if (isFound) {// если совподение найдено
+                            } else error = 15;
+                        };
+                    } else error = 14;
+                };
+                // получаем список тикетов
+                if (!error) {// если нету ошибок
+                    for (var i = 1, items = [], data = null; !data || data.hasMoreRecords && !error; i++) {
+                        data = { pagenumber: i };// данные для запроса
+                        data = app.api.cherwell("get", "getsearchresults/association/" + busObId + "/scope/User/scopeowner/" + ownerId + "/searchname/" + query, data);
+                        if (!data.hasError && data.businessObjects) {// нет ошибок
+                            items = items.concat(data.businessObjects);
+                        } else error = 16;
+                    };
+                };
+                // преобразуем массив тикетов в объект
+                if (!error) {// если нету ошибок
+                    for (var i = 0, iLen = items.length; i < iLen; i++) {
+                        item = items[i];// получаем очередной элимент
+                        ticket = {};// создаём пустой элимент
+                        for (var j = 0, jLen = item.fields.length; j < jLen; j++) {
+                            fieldId = map.fields[item.fields[j].name];// получаем идентификатор поля
+                            if (fieldId) ticket[fieldId] = item.fields[j].value;
+                        };
+                        id = ticket[map.fields[primary]];
+                        if (id) tickets[id] = ticket;
                     };
                 };
                 // получаем список задач в приложении
@@ -692,13 +829,13 @@ var readmine = new App({
                         if (data.issues) items = items.concat(data.issues);
                     };
                 };
-                // выполняем действие над задачами
+                // синхранизируем задачи в приёмник
                 if (!error) {// если нету ошибок
                     for (var i = 0, iLen = items.length; i < iLen; i++) {
                         item = items[i];// получаем очередной элимент
                         // добавляем пользовательские ключи
                         item["true"] = true;// для проверки наличия значения
-                        item["false"] = "";// для проверки отсутствия значения
+                        item["false"] = false;// для проверки отсутствия значения
                         for (var key in item) {// пробигаемся по задаче
                             unit = item[key];// запоминаем значение
                             key = app.fun.getAttribute("custom", key);
@@ -730,14 +867,151 @@ var readmine = new App({
                                 // проверяем значение на соответствие фильтру
                                 if (flag) {// если есть что проверять
                                     if (filter) filter = app.lib.template(filter, item, app.fun.filter);
-                                    filter = app.fun.str2val(filter);// преобразовывает строку в значение
-                                    if (app.lib.validate(filter, "boolean")) value = value ? true : false;
-                                    flag = !app.lib.compare(filter, value);
-                                    if (!flag && isNaN(filter)) {// если не прошёл проверку на полное соответствие
-                                        filter = "" + filter;// приводим к единому типу
-                                        value = "" + value;// приводим к единому типу
-                                        filter = filter.toLowerCase();// переводим в нижний регистр
-                                        flag = ~value.toLowerCase().indexOf(filter);
+                                    list = filter.split(app.val.delimParam);// разделяем на отдельные значения
+                                    flag = false;// сбрасываем значение перед проверкой
+                                    for (var j = 0, jLen = list.length; j < jLen && !flag; j++) {
+                                        filter = list[j];// получаем очередное значение
+                                        filter = app.fun.str2val(filter);// преобразовывает строку в значение
+                                        flag = app.lib.validate(filter, "boolean");// нужно ли преобразовать значение
+                                        flag = !app.lib.compare(filter, flag ? (value ? true : false) : value);
+                                        if (!flag && isNaN(filter)) {// если не прошёл проверку на полное соответствие
+                                            flag = app.lib.hasValue("" + value, filter, false);
+                                        };
+                                    };
+                                };
+                                // прерываем если не прошли проверку
+                                if (!flag) break;
+                            };
+                        };
+                        // готовим данные для обновления
+                        if (flag) {// если нужно подготовить данные
+                            unit = null;// сбрасываем значение
+                            ticket = null;// сбрасываем значение
+                            index = 0;// счётчик колличества полей
+                            for (var id in fields) {// пробегаемся по полям
+                                if (!unit) unit = {};// создаём объект для данных
+                                // формируем значение
+                                value = fields[id];// получаем очередное значение
+                                if (value) value = app.lib.template(value, item, app.fun.filter);
+                                value = app.fun.str2val(value);
+                                // присваиваем значение
+                                fieldId = map.fields[id];
+                                if (id == primary) ticket = tickets[value];
+                                if (!ticket || ticket[fieldId] != value) index++;
+                                unit[fieldId] = value;
+                            };
+                        };
+                        // обновляем данные в тикете или создаём новый
+                        if (flag && index) {// если необходимо обновить данные
+                            data = { "busObId": busObId, "persist": true, "fields": [] };
+                            if (ticket) data["busObPublicId"] = ticket[map.fields["IncidentID"]];
+                            for (var fieldId in unit) {// пробегаемся по полям
+                                data.fields.push({
+                                    "value": unit[fieldId],
+                                    "fieldId": fieldId,
+                                    "dirty": true
+                                });
+                            };
+                            data = app.api.cherwell("post", "savebusinessobject", data);
+                        };
+                    };
+                };
+                // возвращаем результат
+                return error;
+            },
+
+            /**
+             * Изменяет уже существующие задачи в сохранённом запросе.
+             * @param {number} [query] - Идентификатор сохранённого запроса для всех проектов.
+             * @param {string} [filters] - Дополнительный фильтр в формате id:value,value;id:value,value с шаблонизацией.
+             * @param {string} fields - Изменяемые поля и их значения в формате id:value;id:value с шаблонизацией.
+             * @returns {number} Номер ошибки или нулевое значение.
+             */
+
+            "issues.change": function (query, filters, fields) {
+                var key, value, filter, data, unit, flag, item, items,
+                    watcher, watchers, index, error = 0;
+
+                // корректируем порядок входных параметров
+                if (isNaN(query)) { fields = filters; filters = query; query = null; };
+                if (!fields) { fields = filters; filters = null; };
+                // получаем значения для фильтров
+                if (!error) {// если нету ошибок
+                    filters = filters ? app.lib.str2obj(filters, false, app.val.delimKey, app.val.delimVal) : null;
+                    if (filters) {// если удалось получить список фильтров и значения для них
+                        for (var id in filters) {// пробегаемся по списку полученных фильтров
+                            value = filters[id];// получаем очередное значение
+                            if (value) filters[id] = value.split('"').join("").split("'").join("");
+                        };
+                    };
+                };
+                // получаем значения для изменяемых полей
+                if (!error) {// если нету ошибок
+                    fields = fields ? app.lib.str2obj(fields, false, app.val.delimKey, app.val.delimVal) : null;
+                    if (fields) {// если удалось получить список полей и значения для их изменения
+                        for (var id in fields) {// пробегаемся по списку полученных полей
+                            value = fields[id];// получаем очередное значение
+                            if (value) fields[id] = value.split('"').join("").split("'").join("");
+                        };
+                    } else error = 7;
+                };
+                // получаем список задач в приложении
+                if (!error) {// если нету ошибок
+                    for (var items = [], data = null; !data || data.total_count > data.offset; data.offset += data.limit) {
+                        data = { offset: data ? data.offset : 0 };// данные для запроса
+                        if (query) data.query_id = query;// фильтр по идентификатору запроса
+                        data = app.api.redmine("get", "issues", data);// запрашиваем данные через api
+                        if (data.issues) items = items.concat(data.issues);
+                    };
+                };
+                // выполняем действие над задачами
+                if (!error) {// если нету ошибок
+                    for (var i = 0, iLen = items.length; i < iLen; i++) {
+                        item = items[i];// получаем очередной элимент
+                        // добавляем пользовательские ключи
+                        item["true"] = true;// для проверки наличия значения
+                        item["false"] = false;// для проверки отсутствия значения
+                        for (var key in item) {// пробигаемся по задаче
+                            unit = item[key];// запоминаем значение
+                            key = app.fun.getAttribute("custom", key);
+                            if (key) item[key] = unit;
+                        };
+                        // проверяем задачу на соответствие фильтрам
+                        flag = true;// задача удовлетворяет фильтрам
+                        if (filters) {// если нужно применить фильтры к задаче
+                            for (var id in filters) {// пробегаемся по полям
+                                filter = filters[id];// получаем очередное значение
+                                // получаем значение из конечного поля
+                                if (!isNaN(id)) {// если дополнительное поле
+                                    flag = false;// задача не удовлетворяет фильтру
+                                    list = item.custom_fields ? item.custom_fields : [];
+                                    for (var j = 0, jLen = list.length; !flag && j < jLen; j++) {
+                                        unit = list[j];// получаем значение очередного поля
+                                        flag = unit.id == Number(id);// найдено значение
+                                        if (flag) value = unit.value;
+                                    };
+                                } else {// если не дополнительное поле
+                                    value = data = item;// берём элимент для анализа
+                                    list = id.split(app.val.delimId);// получаем цепочку ключей
+                                    for (var j = 0, jLen = list.length; flag && j < jLen; j++) {
+                                        key = list[j];// получаем очередной ключ
+                                        flag = key in data;// найдено значение
+                                        if (flag) value = data = data[key];
+                                    };
+                                };
+                                // проверяем значение на соответствие фильтру
+                                if (flag) {// если есть что проверять
+                                    if (filter) filter = app.lib.template(filter, item, app.fun.filter);
+                                    list = filter.split(app.val.delimParam);// разделяем на отдельные значения
+                                    flag = false;// сбрасываем значение перед проверкой
+                                    for (var j = 0, jLen = list.length; j < jLen && !flag; j++) {
+                                        filter = list[j];// получаем очередное значение
+                                        filter = app.fun.str2val(filter);// преобразовывает строку в значение
+                                        flag = app.lib.validate(filter, "boolean");// нужно ли преобразовать значение
+                                        flag = !app.lib.compare(filter, flag ? (value ? true : false) : value);
+                                        if (!flag && isNaN(filter)) {// если не прошёл проверку на полное соответствие
+                                            flag = app.lib.hasValue("" + value, filter, false);
+                                        };
                                     };
                                 };
                                 // прерываем если не прошли проверку
@@ -865,6 +1139,81 @@ var readmine = new App({
                     if (data) {// если данные сконвертированы
                         response = data;
                     } else error = 3;
+                };
+                // возвращаем результат
+                return response;
+            },
+
+            /**
+             * Программный интерфейс взаимодействия с redmine.
+             * @param {string} [method] - Метод http для запроса.
+             * @param {string} request - Адрес uri запроса без расширения.
+             * @param {object} [data] - Данные отправляемые в запросе.
+             * @returns {object} Данные которые вернуло api.
+             */
+
+            cherwell: function (method, request, data) {
+                var xhr, url, flag, token, response = {}, error = 0;
+
+                // получаем токен для запросов
+                if (!error && !app.val.apiCherwellToken) {// если нет токена
+                    url = app.val.apiCherwellUrl + "token";
+                    xhr = new ActiveXObject("MSXML2.ServerXMLHTTP");
+                    xhr.open("post".toUpperCase(), url, false);
+                    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                    xhr.send(app.lib.obj2str({// отправляемые данные
+                        "client_id": app.val.apiCherwellClient,
+                        "username": app.val.apiCherwellUser,
+                        "password": app.val.apiCherwellPassword,
+                        "grant_type": "password"
+                    }, true));
+                    if (xhr.responseText && 200 == xhr.status) {// если получен ответ
+                        token = JSON.parse(xhr.responseText).access_token;
+                        if (token) {// если удалось получить токен
+                            app.val.apiCherwellToken = token;
+                        } else error = 2;
+                    } else error = 1;
+                };
+                // определяем необходимость конвертации данных
+                if (!error) {// если нету ошибок
+                    switch (method.toLowerCase()) {// совместимые методы
+                        case "get": flag = false; break;
+                        case "head": flag = false; break;
+                        case "delete": flag = false; break;
+                        default: flag = true;
+                    };
+                };
+                // конвертируем отправляемые данные
+                if (!error && data && flag) {// если нужно выполнить
+                    data = JSON.stringify(data);
+                };
+                // добавляем данные в адрес запроса
+                if (!error && data && !flag) {// если нужно выполнить
+                    data = app.lib.obj2str(data, true);
+                    if (~request.indexOf("?")) request += "&";
+                    else request += "?";
+                    request += data;
+                    data = null;
+                };
+                // делаем запрос на сервер
+                if (!error) {// если нету ошибок
+                    url = app.val.apiCherwellUrl + "api/V1/" + request;
+                    xhr = new ActiveXObject("MSXML2.ServerXMLHTTP");
+                    xhr.open(method.toUpperCase(), url, false);
+                    xhr.setRequestHeader("Accept", "application/json");
+                    xhr.setRequestHeader("Content-Type", "application/json");
+                    xhr.setRequestHeader("Authorization", "Bearer " + app.val.apiCherwellToken);
+                    if (data) xhr.send(data);
+                    else xhr.send();
+                    if (xhr.responseText && 200 == xhr.status) {// если получен ответ
+                    } else error = 3;
+                };
+                // конвертируем полученные данные
+                if (!error) {// если нету ошибок
+                    data = JSON.parse(xhr.responseText);
+                    if (data) {// если данные сконвертированы
+                        response = data;
+                    } else error = 4;
                 };
                 // возвращаем результат
                 return response;
