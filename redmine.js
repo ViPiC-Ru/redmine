@@ -1,4 +1,4 @@
-/* 0.2.3 взаимодействие с redmine по средствам api
+/* 0.2.4 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -381,8 +381,8 @@ var readmine = new App({
              */
 
             filter: function (name, data) {
-                var id, uid, value, attribute, key, keys, fragment, flag, list, startFragment,
-                    endFragment, length, content, unit, isFound, index,
+                var id, uid, value, attribute, key, keys, fragment, flag, list, prefix, fragments,
+                    delim, startFragment, endFragment, length, content, unit, isFound, index,
                     params = [];
 
                 name = name ? "" + name : "";
@@ -479,6 +479,37 @@ var readmine = new App({
                         // возвращаем результат
                         return value;
                         break;
+                    case "crop" == name.toLowerCase():// обрезать
+                        // очищаем значение
+                        value = data ? app.lib.trim("" + data) : "";
+                        // удаляем строку начинающиеся с ключевой фразы и все предшествующие строки
+                        delim = "\n", prefix = "**";// дополнительный вариант с префиксом
+                        list = ["Importance:", "Subject:", "From:"];
+                        isFound = false;// найдено ли совпадение
+                        fragments = value.split(delim);// разбиваем входной текст на строки
+                        for (var i = 0, iLen = list.length; i < iLen && !isFound; i++) {
+                            for (var j = 0, jLen = fragments.length; j < jLen && !isFound; j++) {
+                                fragment = fragments[j];// получаем очередной
+                                for (var k = 0, kLen = 2; k < kLen && !isFound; k++) {
+                                    key = k ? list[i] : prefix + list[i];
+                                    index = fragment.indexOf(key);
+                                    if (!index) isFound = true;
+                                };
+                            };
+                        };
+                        if (isFound) {// если найдено совпадение
+                            fragment = fragments.slice(j).join(delim);
+                            value = app.lib.trim(fragment);
+                        };
+                        // делаем первую букву заглавной
+                        fragment = value;// присваиваем значение
+                        if (fragment.charAt(0) == fragment.charAt(0).toLowerCase()) {
+                            fragment = fragment.charAt(0).toUpperCase() + fragment.substring(1);
+                        };
+                        value = fragment;
+                        // возвращаем результат
+                        return value;
+                        break;
                     case "hash" == name.toLowerCase():// хеш
                         // очищаем значение
                         value = data ? app.lib.trim("" + data) : "";
@@ -511,6 +542,56 @@ var readmine = new App({
                                     break;
                                 };
                             };
+                        };
+                        // возвращаем результат
+                        if (flag) return value;
+                        break;
+                    case "replace" == name.toLowerCase():// замена значений
+                        // очищаем значение
+                        value = data ? "" + data : "";
+                        // форматируем значение
+                        if (params[0]) value = value.split(params[0]).join(params[1] || "");
+                        // возвращаем результат
+                        return value;
+                        break;
+                    case "context" == keys[0].toLowerCase():// контекст
+                        // очищаем значение
+                        value = data ? app.lib.trim("" + data) : "";
+                        // работаем с контекстом
+                        flag = false;// найдено ли совпадение
+                        switch (keys[1]) {// поддерживаемые контексты
+                            case "from":// отправитель пересланного письма
+                                delim = "\n", prefix = "**";// дополнительный вариант с префиксом
+                                list = ["From:"];
+                                isFound = false;// найдено ли совпадение
+                                fragments = value.split(delim);// разбиваем входной текст на строки
+                                for (var i = 0, iLen = list.length; i < iLen && !isFound; i++) {
+                                    for (var j = 0, jLen = fragments.length; j < jLen && !isFound; j++) {
+                                        fragment = fragments[j];// получаем очередной
+                                        for (var k = 0, kLen = 2; k < kLen && !isFound; k++) {
+                                            key = k ? list[i] : prefix + list[i];
+                                            index = fragment.indexOf(key);
+                                            if (!index) isFound = true;
+                                        };
+                                    };
+                                };
+                                if (isFound) {// если найдено совпадение
+                                    fragment = value.substring(index + key.length);
+                                    // указание почты при пересылки сообщения
+                                    startFragment = "<"; endFragment = ">";// ограничители значения
+                                    if (fragment.indexOf(endFragment) > fragment.indexOf(startFragment)) {
+                                        fragment = app.lib.strim(fragment, startFragment, endFragment, false, false);
+                                    };
+                                    // указание почты в виде ссылки
+                                    startFragment = "(mailto:"; endFragment = ")";// ограничители значения
+                                    if (fragment.indexOf(endFragment) > fragment.indexOf(startFragment)) {
+                                        fragment = app.lib.strim(fragment, startFragment, endFragment, false, false);
+                                    };
+                                    // обризаем пробельные символы по краям
+                                    value = app.lib.trim(fragment);
+                                    if (value) flag = true;
+                                };
+                                break;
                         };
                         // возвращаем результат
                         if (flag) return value;
