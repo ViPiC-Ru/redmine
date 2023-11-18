@@ -1,4 +1,4 @@
-/* 0.2.2 взаимодействие с redmine по средствам api
+/* 0.2.3 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -847,7 +847,17 @@ var readmine = new App({
                         ticket = {};// создаём пустой элимент
                         for (var j = 0, jLen = item.fields.length; j < jLen; j++) {
                             fieldId = map.fields[item.fields[j].name];// получаем идентификатор поля
-                            if (fieldId) ticket[fieldId] = item.fields[j].value;
+                            if (fieldId) {// если поле нужно для дальнейшей обработки
+                                value = item.fields[j].value;
+                                // убираем не синхронизируемые символы
+                                list = [160, 13];// неразрывный пробел, возврат каретки
+                                for (var k = 0, kLen = list.length; value && k < kLen; k++) {
+                                    key = String.fromCharCode(list[k]);// получаем символ
+                                    value = ("" + value).split(key).join("");
+                                };
+                                // присваиваем значение
+                                ticket[fieldId] = value;
+                            };
                         };
                         id = ticket[map.fields[primary]];
                         if (id) tickets[id] = ticket;
@@ -1236,17 +1246,20 @@ var readmine = new App({
                     xhr.setRequestHeader("Accept", "application/json");
                     xhr.setRequestHeader("Content-Type", "application/json");
                     xhr.setRequestHeader("Authorization", "Bearer " + app.val.apiCherwellToken);
-                    if (data) xhr.send(data);
-                    else xhr.send();
-                    if (xhr.responseText && 200 == xhr.status) {// если получен ответ
-                    } else error = 3;
+                    try {// пробуем отправить данные
+                        if (data) xhr.send(data); else xhr.send();
+                        if (xhr.responseText && 200 == xhr.status) {// если получен ответ
+                        } else error = 4;
+                    } catch (e) {// если возникли ошибки
+                        error = 3;
+                    };
                 };
                 // конвертируем полученные данные
                 if (!error) {// если нету ошибок
                     data = JSON.parse(xhr.responseText);
                     if (data) {// если данные сконвертированы
                         response = data;
-                    } else error = 4;
+                    } else error = 5;
                 };
                 // возвращаем результат
                 return response;
