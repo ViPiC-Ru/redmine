@@ -1,4 +1,4 @@
-/* 0.2.1 взаимодействие с redmine по средствам api
+/* 0.2.2 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -381,8 +381,9 @@ var readmine = new App({
              */
 
             filter: function (name, data) {
-                var id, uid, value, attribute, key, keys, fragment, flag, list,
-                    startFragment, endFragment, length, content, unit, params = [];
+                var id, uid, value, attribute, key, keys, fragment, flag, list, startFragment,
+                    endFragment, length, content, unit, isFound, index,
+                    params = [];
 
                 name = name ? "" + name : "";
                 // парсим переданные параметры для фильтра
@@ -431,18 +432,50 @@ var readmine = new App({
                     case "normal" == name.toLowerCase():// нормализация
                         // очищаем значение
                         value = data ? app.lib.trim("" + data) : "";
-                        key = ".";// заканчивается на точку
-                        if (value.indexOf(key) == value.length - key.length) {
-                            value = value.substr(0, value.length - key.length);
+                        // убираем запрещённые символы
+                        list = [160];// неразрывный пробел
+                        fragment = value;// присваиваем значение
+                        for (var i = 0, iLen = list.length; i < iLen; i++) {
+                            key = String.fromCharCode(list[i]);// получаем символ
+                            fragment = fragment.split(key).join("");
                         };
-                        key = "FW:";// признак пересылки
-                        if (!value.indexOf(key)) value = value.substr(key.length);
-                        key = "RE:";// признак ответа
-                        if (!value.indexOf(key)) value = value.substr(key.length);
-                        value = app.lib.trim(value);
-                        if (value.charAt(0) == value.charAt(0).toLowerCase()) {
-                            value = value.charAt(0).toUpperCase() + value.substr(1);
+                        value = app.lib.trim(fragment);
+                        // удаляем ключевые фразы в начале
+                        list = ["FW:", "RE:"];
+                        isFound = false;// найдено ли совпадение
+                        for (var i = 0, iLen = list.length; i < iLen && !isFound; i++) {
+                            key = list[i];// получаем очередной элимент
+                            index = value.indexOf(key);
+                            if (!index) isFound = true;
                         };
+                        if (isFound) {// если найдено совпадение
+                            fragment = value.substring(index + key.length);
+                            value = app.lib.trim(fragment);
+                        };
+                        // удаляем единственные ключевые фразы в конце
+                        list = [".", "!", "?"];
+                        isFound = false;// найдено ли совпадение
+                        for (var i = 0, iLen = list.length; i < iLen && !isFound; i++) {
+                            key = list[i];// получаем очередной элимент
+                            index = value.indexOf(key);
+                            if (value.length - index == key.length) isFound = true;
+                        };
+                        if (isFound) {// если найдено совпадение
+                            fragment = value.substring(0, index);
+                            value = app.lib.trim(fragment);
+                        };
+                        // делаем первую букву заглавной
+                        fragment = value;// присваиваем значение
+                        if (fragment.charAt(0) == fragment.charAt(0).toLowerCase()) {
+                            fragment = fragment.charAt(0).toUpperCase() + fragment.substring(1);
+                        };
+                        value = fragment;
+                        // заменяем отдельные комбинации для cherwell
+                        fragment = value;// присваиваем значение
+                        fragment = fragment.split("  ").join(" ");
+                        fragment = fragment.split(" \n").join("\n");
+                        fragment = fragment.split("\n ").join("\n");
+                        value = fragment;
                         // возвращаем результат
                         return value;
                         break;
@@ -501,7 +534,7 @@ var readmine = new App({
                             key = keys.shift().toLowerCase() + "s";
                             data = { name: data };// данные для запроса
                             data = app.api.redmine("get", key, data);
-                            data = data[key] ? data[key][0] : null;
+                            data = data[key] && 1 == data[key].length ? data[key][0] : null;
                         } else data = null;
                         // получаем цепочтку данных по ключам
                         unit = data;// получаем данные для проверки
