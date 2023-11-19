@@ -1,4 +1,4 @@
-/* 0.2.6 взаимодействие с redmine по средствам api
+/* 0.2.7 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -959,6 +959,11 @@ var readmine = new App({
                                 for (var k = 0, kLen = list.length; value && k < kLen; k++) {
                                     key = String.fromCharCode(list[k]);// получаем символ
                                     value = ("" + value).split(key).join("");
+                                };
+                                // оставляем только дату если задано пустое время
+                                list = ("" + value).split(" ");
+                                if ("12:00:00" == list[1] && "AM" == list[2] && 3 == list.length) {
+                                    value = list[0];
                                 };
                                 // присваиваем значение
                                 ticket[fieldId] = value;
