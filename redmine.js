@@ -1,4 +1,4 @@
-/* 0.2.4 взаимодействие с redmine по средствам api
+/* 0.2.5 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -66,12 +66,12 @@ var readmine = new App({
                         "::" == input.charAt(13) + input.charAt(16) &&
                         "TZ" == input.charAt(10) + input.charAt(19):
                         value = Date.UTC(// дата в нужном часовом поясе
-                            Number(input.substr(0, 4)),
-                            Number(input.substr(5, 2)),
-                            Number(input.substr(8, 2)),
-                            Number(input.substr(11, 2)),
-                            Number(input.substr(14, 2)),
-                            Number(input.substr(17, 2))
+                            Number(input.substring(0, 4)),
+                            Number(input.substring(5, 7)) - 1,
+                            Number(input.substring(8, 10)),
+                            Number(input.substring(11, 13)),
+                            Number(input.substring(14, 16)),
+                            Number(input.substring(17, 19))
                         );
                         value = new Date(value);
                         break;
@@ -100,7 +100,7 @@ var readmine = new App({
                         break;
                     case app.lib.validate(input, "date"):
                         value = input.getUTCFullYear()
-                            + "-" + app.lib.strPad(input.getUTCMonth(), 2, "0", "left")
+                            + "-" + app.lib.strPad(input.getUTCMonth() + 1, 2, "0", "left")
                             + "-" + app.lib.strPad(input.getUTCDate(), 2, "0", "left")
                             + "T" + app.lib.strPad(input.getUTCHours(), 2, "0", "left")
                             + ":" + app.lib.strPad(input.getUTCMinutes(), 2, "0", "left")
@@ -483,7 +483,7 @@ var readmine = new App({
                         // очищаем значение
                         value = data ? app.lib.trim("" + data) : "";
                         // удаляем строку начинающиеся с ключевой фразы и все предшествующие строки
-                        delim = "\n", prefix = "**";// дополнительный вариант с префиксом
+                        delim = "\n"; prefix = "**";// дополнительный вариант с префиксом
                         list = ["Importance:", "Subject:", "From:"];
                         isFound = false;// найдено ли совпадение
                         fragments = value.split(delim);// разбиваем входной текст на строки
@@ -533,13 +533,12 @@ var readmine = new App({
                         value = data ? app.lib.trim("" + data) : "";
                         // форматируем значение
                         flag = false;// найдено ли совпадение
-                        for (var i = 0, iLen = params.length; i < iLen; i++) {
+                        for (var i = 0, iLen = params.length; i < iLen && !flag; i++) {
                             if (~params[i].indexOf(app.val.delimMap)) {// если есть разделитель
                                 key = app.lib.strim(params[i], "", app.val.delimMap, false, false);
-                                if (value == key || !value && !key) {// если найдено совпадение
+                                if ("*" == key || value == key || !value && !key) {// если найдено совпадение
                                     value = app.lib.strim(params[i], app.val.delimMap, "", false, false);
                                     flag = true;
-                                    break;
                                 };
                             };
                         };
@@ -561,7 +560,7 @@ var readmine = new App({
                         flag = false;// найдено ли совпадение
                         switch (keys[1]) {// поддерживаемые контексты
                             case "from":// отправитель пересланного письма
-                                delim = "\n", prefix = "**";// дополнительный вариант с префиксом
+                                delim = "\n"; prefix = "**";// дополнительный вариант с префиксом
                                 list = ["From:"];
                                 isFound = false;// найдено ли совпадение
                                 fragments = value.split(delim);// разбиваем входной текст на строки
