@@ -1,4 +1,4 @@
-/* 0.2.5 взаимодействие с redmine по средствам api
+/* 0.2.6 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -506,6 +506,31 @@ var readmine = new App({
                         if (fragment.charAt(0) == fragment.charAt(0).toLowerCase()) {
                             fragment = fragment.charAt(0).toUpperCase() + fragment.substring(1);
                         };
+                        value = fragment;
+                        // возвращаем результат
+                        return value;
+                        break;
+                    case "clear" == name.toLowerCase():// частично удаляем markdown разметку
+                        // очищаем значение
+                        value = data ? app.lib.trim("" + data) : "";
+                        // удаляем все markdown ссылки
+                        startFragment = "["; delim = "]("; endFragment = ")";// ограничители значения
+                        fragments = value.split(delim);// разбиваем входной текст на строки
+                        for (var i = 0, iLen = fragments.length; i < iLen; i++) {
+                            fragment = fragments[i];// получаем очередной
+                            if (i && ~fragment.indexOf(endFragment)) {// если есть конечный ограничитель
+                                fragment = app.lib.strim(fragment, endFragment, null, false, false);
+                            };
+                            if (~fragment.indexOf(startFragment)) {// если есть начальный ограничитель
+                                fragment = app.lib.strim(fragment, null, startFragment, false, true);
+                            };
+                            fragments[i] = fragment;
+                        };
+                        fragment = fragments.join("");
+                        value = app.lib.trim(fragment);
+                        // заменяем отдельные markdown комбинации
+                        fragment = value;// присваиваем значение
+                        fragment = fragment.split("*").join("");
                         value = fragment;
                         // возвращаем результат
                         return value;

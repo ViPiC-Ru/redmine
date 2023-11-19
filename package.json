@@ -1,6 +1,6 @@
 {
     "name": "redmine",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "description": "Взаимодействие с redmine по средствам api",
     "main": "redmine.js",
     "author": "ViPiC",
