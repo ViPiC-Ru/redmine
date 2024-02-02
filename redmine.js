@@ -1,4 +1,4 @@
-/* 0.2.7 взаимодействие с redmine по средствам api
+/* 0.2.8 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -382,7 +382,7 @@ var readmine = new App({
 
             filter: function (name, data) {
                 var id, uid, value, attribute, key, keys, fragment, flag, list, prefix, fragments,
-                    delim, startFragment, endFragment, length, content, unit, isFound, index,
+                    delim, startFragment, endFragment, length, content, unit, isFound, index, item,
                     params = [];
 
                 name = name ? "" + name : "";
@@ -416,8 +416,9 @@ var readmine = new App({
                             { index: value.length - 2, length: 2 }
                         ];
                         for (var i = 0, iLen = list.length; i < iLen; i++) {
-                            length = list[i].length + Math.min(0, list[i].index);
-                            list[i] = value.substr(Math.max(0, list[i].index), Math.max(0, length));
+                            item = list[i];// получаем очередной элимент
+                            length = item.length + Math.min(0, item.index);
+                            list[i] = value.substr(Math.max(0, item.index), Math.max(0, length));
                         };
                         if (!list[0] && list[1]) list[0] = 7;
                         value = "";// пустое значение
@@ -577,6 +578,43 @@ var readmine = new App({
                         if (params[0]) value = value.split(params[0]).join(params[1] || "");
                         // возвращаем результат
                         return value;
+                        break;
+                    case "date" == name.toLowerCase():// замена значений
+                        // обрабатываем значение
+                        flag = true;// найдено ли совпадение
+                        if (!app.lib.validate(data, "date")) {// если передана не дата
+                            list = [// форматы дат с разделителями
+                                { delim: ".", year: 2, month: 1, day: 0 },
+                                { delim: "/", year: 2, month: 0, day: 1 },
+                                { delim: "-", year: 0, month: 1, day: 2 }
+                            ];
+                            flag = false;// найдено ли совпадение
+                            for (var i = 0, iLen = list.length; i < iLen && !flag; i++) {
+                                item = list[i];// получаем очередной элимент
+                                value = data ? app.lib.trim("" + data) : "";
+                                fragments = value.split(" ")[0].split(item.delim);
+                                if (3 == fragments.length) {// если формально соотвентствуюет
+                                    value = new Date(// получаем метку времени
+                                        fragments[item.year],
+                                        fragments[item.month] - 1,
+                                        fragments[item.day]
+                                    );
+                                    flag = !isNaN(value);
+                                };
+                            };
+                        } else value = data;
+                        // выполняем смещение значения
+                        if (flag && params[1]) {// если нужно выполнить
+                            if (!isNaN(params[1])) {// если передано число
+                                value.setDate(value.getDate() + Number(params[1]));
+                            } else flag = false;
+                        };
+                        // форматируем значение
+                        if (flag) {// если найдено совпадение
+                            value = app.lib.date2str(value, params[0] || "Y-m-d");
+                        };
+                        // возвращаем результат
+                        if (flag) return value;
                         break;
                     case "context" == keys[0].toLowerCase():// контекст
                         // очищаем значение
