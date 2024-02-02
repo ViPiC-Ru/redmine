@@ -1,4 +1,4 @@
-/* 0.2.8 взаимодействие с redmine по средствам api
+/* 0.2.9 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -382,8 +382,8 @@ var redmine = new App({
 
             filter: function (name, data) {
                 var id, uid, value, attribute, key, keys, fragment, flag, list, prefix, fragments,
-                    delim, startFragment, endFragment, length, content, unit, isFound, index, item,
-                    params = [];
+                    delim, startFragment, endFragment, length, content, unit, isFound, isEmail,
+                    index, item, params = [];
 
                 name = name ? "" + name : "";
                 // парсим переданные параметры для фильтра
@@ -485,7 +485,12 @@ var redmine = new App({
                         value = data ? app.lib.trim("" + data) : "";
                         // удаляем строку начинающиеся с ключевой фразы и все предшествующие строки
                         delim = "\n"; prefix = "**";// дополнительный вариант с префиксом
-                        list = ["Importance:", "Subject:", "From:"];
+                        list = [// ключевые фразы
+                            "Importance:", "Важность:",
+                            "Subject:", "Тема:",
+                            "Deadline:", "Срок:",
+                            "From:", "От:"
+                        ];
                         isFound = false;// найдено ли совпадение
                         fragments = value.split(delim);// разбиваем входной текст на строки
                         for (var i = 0, iLen = list.length; i < iLen && !isFound; i++) {
@@ -500,6 +505,27 @@ var redmine = new App({
                         };
                         if (isFound) {// если найдено совпадение
                             fragment = fragments.slice(j).join(delim);
+                            value = app.lib.trim(fragment);
+                        };
+                        // удаляем строку по регулярному выражению и все последующие строки
+                        delim = "\n";// разделитель строк
+                        list = [// шаблоны регулярярных выражений
+                            /.*(Best Regards|Best regards|BR).*/,
+                            /.*(Kind regards|kind regards).*/,
+                            /.*(С|C) (Уважением|уважением).*/,
+                            /.*(Получите Outlook для).*/,
+                            /\**([A-ZА-Я][a-zа-я]{4,10} [A-ZА-Я][a-zа-я]{4,10}( \/ )*)+\**/
+                        ];
+                        isFound = false;// найдено ли совпадение
+                        fragments = value.split(delim);// разбиваем входной текст на строки
+                        for (var i = 0, iLen = fragments.length; i < iLen && !isFound; i++) {
+                            fragment = fragments[i];// получаем очередной
+                            for (var j = 0, jLen = list.length; j < jLen && !isFound; j++) {
+                                isFound = list[j].test(fragment);
+                            };
+                        };
+                        if (isFound) {// если найдено совпадение
+                            fragment = fragments.slice(0, i - 1).join(delim);
                             value = app.lib.trim(fragment);
                         };
                         // делаем первую букву заглавной
@@ -620,11 +646,16 @@ var redmine = new App({
                         // очищаем значение
                         value = data ? app.lib.trim("" + data) : "";
                         // работаем с контекстом
+                        list = null;// сбрасываем значение
                         flag = false;// найдено ли совпадение
+                        isEmail = false;// значение в виде почты
+                        delim = "\n"; prefix = "**";// дополнительный вариант с префиксом
                         switch (keys[1]) {// поддерживаемые контексты
                             case "from":// отправитель пересланного письма
-                                delim = "\n"; prefix = "**";// дополнительный вариант с префиксом
-                                list = ["From:"];
+                                if (!list) list = ["From:", "От:"];
+                                isEmail = true;// значение в виде почты
+                            case "deadline":// срок выполнения задачи
+                                if (!list) list = ["Deadline:", "Срок:"];
                                 isFound = false;// найдено ли совпадение
                                 fragments = value.split(delim);// разбиваем входной текст на строки
                                 for (var i = 0, iLen = list.length; i < iLen && !isFound; i++) {
@@ -638,16 +669,18 @@ var redmine = new App({
                                     };
                                 };
                                 if (isFound) {// если найдено совпадение
-                                    fragment = value.substring(index + key.length);
-                                    // указание почты при пересылки сообщения
-                                    startFragment = "<"; endFragment = ">";// ограничители значения
-                                    if (fragment.indexOf(endFragment) > fragment.indexOf(startFragment)) {
-                                        fragment = app.lib.strim(fragment, startFragment, endFragment, false, false);
-                                    };
-                                    // указание почты в виде ссылки
-                                    startFragment = "(mailto:"; endFragment = ")";// ограничители значения
-                                    if (fragment.indexOf(endFragment) > fragment.indexOf(startFragment)) {
-                                        fragment = app.lib.strim(fragment, startFragment, endFragment, false, false);
+                                    fragment = fragment.substring(index + key.length);
+                                    if (isEmail) {// если значение в виде почты
+                                        // указание почты при пересылки сообщения
+                                        startFragment = "<"; endFragment = ">";// ограничители значения
+                                        if (fragment.indexOf(endFragment) > fragment.indexOf(startFragment)) {
+                                            fragment = app.lib.strim(fragment, startFragment, endFragment, false, false);
+                                        };
+                                        // указание почты в виде ссылки
+                                        startFragment = "(mailto:"; endFragment = ")";// ограничители значения
+                                        if (fragment.indexOf(endFragment) > fragment.indexOf(startFragment)) {
+                                            fragment = app.lib.strim(fragment, startFragment, endFragment, false, false);
+                                        };
                                     };
                                     // обризаем пробельные символы по краям
                                     value = app.lib.trim(fragment);
