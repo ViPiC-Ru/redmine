@@ -23,11 +23,11 @@ cscript redmine.min.js <instance> issues.change [<query>] [<filters>] <fields>
 
 */
 
-var readmine = new App({
-    apiReadmineUrl: null,           // базовый url для запросов к api readmine
-    apiReadmineKey: null,           // ключ доступа к api readmine
-    apiReadmineUser: null,          // логин для доступа к api readmine
-    apiReadminePassword: null,      // пароль для доступа к api readmine
+var redmine = new App({
+    apiRedmineUrl: null,            // базовый url для запросов к api redmine
+    apiRedmineKey: null,            // ключ доступа к api redmine
+    apiRedmineUser: null,           // логин для доступа к api redmine
+    apiRedminePassword: null,       // пароль для доступа к api redmine
     apiCherwellUrl: null,           // базовый url для запросов к api cherwell
     apiCherwellClient: null,        // идентификатор клиента для доступа к api cherwell
     apiCherwellUser: null,          // логин для доступа к api cherwell
@@ -1313,13 +1313,13 @@ var readmine = new App({
                 };
                 // делаем запрос на сервер
                 if (!error) {// если нету ошибок
-                    url = app.val.apiReadmineUrl + request + ".xml";
+                    url = app.val.apiRedmineUrl + request + ".xml";
                     head = {// заголовки запроса
                         "Cache-Control": "no-store",
                         "If-None-Match": "empty"
                     };
-                    if (app.val.apiReadmineKey) head["X-Redmine-API-Key"] = app.val.apiReadmineKey;
-                    xhr = app.lib.xhr(method, url, head, data, false, null, app.val.apiReadmineUser, app.val.apiReadminePassword);
+                    if (app.val.apiRedmineKey) head["X-Redmine-API-Key"] = app.val.apiRedmineKey;
+                    xhr = app.lib.xhr(method, url, head, data, false, null, app.val.apiRedmineUser, app.val.apiRedminePassword);
                     data = xhr.responseXML;
                     if (app.lib.validate(data, 'xml')) {// если ответ получен
                     } else error = 2;
@@ -1438,15 +1438,15 @@ var readmine = new App({
                     // получаем информацию о key
                     if (!error && instance.fragment) {// если нужно выполнить
                         if (!instance.user && !instance.password) {// если параметр прошёл проверку
-                            app.val.apiReadmineKey = instance.fragment;
+                            app.val.apiRedmineKey = instance.fragment;
                             delete instance.fragment;
                         } else error = 2;
                     };
                     // получаем информацию о логине и пароле
                     if (!error && instance.user) {// если нужно выполнить
                         if (instance.password && !instance.fragment) {// если параметр прошёл проверку
-                            app.val.apiReadmineUser = instance.user;
-                            app.val.apiReadminePassword = instance.password;
+                            app.val.apiRedmineUser = instance.user;
+                            app.val.apiRedminePassword = instance.password;
                             delete instance.password;
                             delete instance.user;
                         } else error = 3;
@@ -1455,7 +1455,7 @@ var readmine = new App({
                     if (!error) {// если нету ошибок
                         if (instance.scheme && instance.domain) {// если параметр прошёл проверку
                             instance.path = app.fun.fixUrlPath(instance.path);
-                            app.val.apiReadmineUrl = app.lib.obj2url(instance);
+                            app.val.apiRedmineUrl = app.lib.obj2url(instance);
                         } else error = 4;
                     };
                 } else error = 1;
@@ -1486,7 +1486,7 @@ var readmine = new App({
             wsh.quit(error);
         }
     });
-})(readmine, WSH);
+})(redmine, WSH);
 
 // инициализируем приложение
-readmine.init();
+redmine.init();
