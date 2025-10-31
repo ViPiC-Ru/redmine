@@ -1,9 +1,9 @@
-/* 0.2.10 взаимодействие с redmine по средствам api
+/* 0.2.11 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
 cscript redmine.min.js <instance> issues.sync <destination> <query> [<filters>] <fields>
-cscript redmine.min.js <instance> issues.change [<query>] [<filters>] <fields>
+cscript redmine.min.js <instance> issues.change [<ai>] [<query>] [<filters>] <fields>
 
 <instance>              - Адрес для подключения к Redmine в формате url (с указанием логина, пароля или ключа во фрагменте).
 <method>                - Собственный метод, который нужно выполнить.
@@ -17,6 +17,7 @@ cscript redmine.min.js <instance> issues.change [<query>] [<filters>] <fields>
         <filters>       - Фильтр в формате id:value,value;id:value,value с шаблонизацией.
         <fields>        - Поля и их значения в формате id:value;id:value с шаблонизацией.
     issues.change       - Изменение задач в Redmine.
+        <ai>            - Адрес для подключения к AI модели в формате url (с указанием токена во фрагменте).
         <query>         - Идентификатор сохранённого запроса для всех проектов.
         <filters>       - Фильтр в формате id:value,value;id:value,value с шаблонизацией.
         <fields>        - Поля и их значения в формате id:value;id:value с шаблонизацией.
@@ -33,6 +34,8 @@ var redmine = new App({
     apiCherwellUser: null,          // логин для доступа к api cherwell
     apiCherwellPassword: null,      // пароль для доступа к api cherwell
     apiCherwellToken: null,         // токен для взаимодействия с api cherwell
+    apiAiUrl: null,                 // базовый url для запросов к api ai
+    apiAiToken: null,               // токен для взаимодействия с api ai
     apiADPath: null,                // базовый путь для запросов к active directory
     userActive: 1,                  // статус активного пользователя
     userRegistered: 2,              // статус зарегистрированного пользователя
@@ -41,6 +44,7 @@ var redmine = new App({
     delimKey: ";",                  // разделитель ключей между собой
     delimParam: ",",                // разделитель параметров между собой
     delimMap: "=",                  // разделитель соответствия
+    delimTag: "#",                  // разделитель версии модели
     delimId: "."                    // разделитель идентификаторов в ключе
 });
 
@@ -443,7 +447,7 @@ var redmine = new App({
                         };
                         value = app.lib.trim(fragment);
                         // удаляем ключевые фразы в начале
-                        list = ["FW:", "Переслать:", "RE:", "Ответить:"];
+                        list = ["FW:", "Переслать:", "RE:", "Ответить:", "Задача:"];
                         fragment = value;// присваиваем значение
                         isFound = false;// найдено ли совпадение
                         for (var i = 0, iLen = list.length; i < iLen && !isFound; i++) {
@@ -514,7 +518,12 @@ var redmine = new App({
                                     index = fragment.indexOf(key);
                                     if (0 <= index && index <= 3 && (!iStart || i == iStart)) {
                                         iStart = i + 1;// сохраняем новую позицию
-                                        unit[name] = fragment.substring(index + key.length);
+                                        fragment = fragment.substring(index + key.length);
+                                        index = fragment.indexOf(key = " ");
+                                        if (0 <= index && index <= 3) {// если есть пробельный символ
+                                            fragment = fragment.substring(index + key.length);
+                                        };
+                                        unit[name] = fragment;
                                         isFound = true;
                                     };
                                 };
@@ -616,6 +625,8 @@ var redmine = new App({
                         value = data ? app.lib.trim("" + data) : "";
                         // форматируем значение
                         flag = true;// нужно ли вернуть значение
+                        if (app.lib.hasValue(["null"], params[0], false)) params[0] = "";
+                        if (app.lib.hasValue(["null"], params[1], false)) params[1] = "";
                         if (value) value = params.length > 0 ? (params[0] || value) : "true";
                         else value = params.length > 1 ? (params[1] || (flag = false)) : "false";
                         // возвращаем результат
@@ -649,6 +660,7 @@ var redmine = new App({
                     case "date" == name.toLowerCase():// замена значений
                         // обрабатываем значение
                         flag = true;// найдено ли совпадение
+                        if (app.lib.hasValue(["null"], params[0], false)) params[0] = "";
                         if (!app.lib.validate(data, "date")) {// если передана не дата
                             list = [// форматы дат с разделителями
                                 { delim: ".", year: 2, month: 1, day: 0 },
@@ -680,6 +692,19 @@ var redmine = new App({
                         if (flag) {// если найдено совпадение
                             value = app.lib.date2str(value, params[0] || "Y-m-d");
                         };
+                        // возвращаем результат
+                        if (flag) return value;
+                        break;
+                    case "ai" == name.toLowerCase():// обработка нейросетью
+                        // очищаем значение
+                        value = data ? app.lib.trim("" + data) : "";
+                        // обрабатываем значение
+                        if (params[0]) params[0] = params[0].split(app.val.delimTag).join(app.val.delimVal);
+                        if (app.lib.hasValue(["null"], params[2], false)) params[2] = "";
+                        fragment = app.api.ai(params[0], params[1], value);
+                        fragment = app.lib.trim(fragment);// удаляем лишние пробелы
+                        if (!fragment && params.length > 2) fragment = params[2] || value;
+                        flag = value = fragment;
                         // возвращаем результат
                         if (flag) return value;
                         break;
@@ -1138,19 +1163,38 @@ var redmine = new App({
 
             /**
              * Изменяет уже существующие задачи в сохранённом запросе.
+             * @param {string} [ai] - Параметры для подключения к ai в формате url.
              * @param {number} [query] - Идентификатор сохранённого запроса для всех проектов.
              * @param {string} [filters] - Дополнительный фильтр в формате id:value,value;id:value,value с шаблонизацией.
              * @param {string} fields - Изменяемые поля и их значения в формате id:value;id:value с шаблонизацией.
              * @returns {number} Номер ошибки или нулевое значение.
              */
 
-            "issues.change": function (query, filters, fields) {
+            "issues.change": function (ai, query, filters, fields) {
                 var key, value, filter, data, unit, flag, item, items,
                     watcher, watchers, index, error = 0;
 
                 // корректируем порядок входных параметров
+                if (!app.lib.url2obj(ai).scheme) { fields = filters; filters = query; query = ai; ai = null; };
                 if (isNaN(query)) { fields = filters; filters = query; query = null; };
                 if (!fields) { fields = filters; filters = null; };
+                // получаяем данные для взаимодействия с llm
+                if (!error && ai) {// если нужно выполнить
+                    ai = app.lib.url2obj(ai);
+                    // получаем информацию о key
+                    if (!error) {// если нету ошибок
+                        if (ai.fragment) {// если параметр прошёл проверку
+                            app.val.apiAiToken = ai.fragment;
+                            delete ai.fragment;
+                        } else error = 8;
+                    };
+                    // получаем информацию о базавом url
+                    if (!error) {// если нету ошибок
+                        if (ai.scheme && ai.domain) {// если параметр прошёл проверку
+                            app.val.apiAiUrl = app.lib.obj2url(ai);
+                        } else error = 10;
+                    };
+                };
                 // получаем значения для фильтров
                 if (!error) {// если нету ошибок
                     filters = filters ? app.lib.str2obj(filters, false, app.val.delimKey, app.val.delimVal) : null;
@@ -1361,7 +1405,7 @@ var redmine = new App({
             },
 
             /**
-             * Программный интерфейс взаимодействия с redmine.
+             * Программный интерфейс взаимодействия с cherwell.
              * @param {string} [method] - Метод http для запроса.
              * @param {string} request - Адрес uri запроса без расширения.
              * @param {object} [data] - Данные отправляемые в запросе.
@@ -1433,6 +1477,58 @@ var redmine = new App({
                     if (data) {// если данные сконвертированы
                         response = data;
                     } else error = 5;
+                };
+                // возвращаем результат
+                return response;
+            },
+
+            /**
+             * Программный интерфейс взаимодействия с ai.
+             * @param {string} model - Идентификатор вызываемой модели.
+             * @param {string} [instruction] - Системная инструкция к запросу.
+             * @param {object} prompt - Запрос пользователя.
+             * @returns {string} Ответ нейросети или пустая строка.
+             */
+
+            ai: function (model, instruction, prompt) {
+                var xhr, method, url, head, data, response = "", error = 0;
+
+                // проверяем обязательные параметры
+                if (!error) {// если нету ошибок
+                    if (model && (instruction || prompt)) {// если есть данные
+                    } else error = 1;
+                };
+                // подготавливаем данные для запроса
+                if (!error) {// если нету ошибок
+                    data = { model: model, messages: [] };
+                    if (instruction) data.messages.push({ role: "system", content: instruction });
+                    if (prompt) data.messages.push({ role: "user", content: prompt });
+                    data = JSON.stringify(data);
+                };
+                // делаем запрос на сервер
+                if (!error) {// если нету ошибок
+                    method = "post";
+                    url = app.val.apiAiUrl;
+                    head = {// заголовки запроса
+                        "Authorization": "Bearer " + app.val.apiAiToken,
+                        "Content-Type": "application/json"
+                    };
+                    xhr = app.lib.xhr(method, url, head, data, false);
+                    if (xhr.responseText && 200 == xhr.status) {// если получен ответ
+                    } else error = 2;
+                };
+                // конвертируем полученные данные
+                if (!error) {// если нету ошибок
+                    data = JSON.parse(xhr.responseText);
+                    if (data) {// если данные сконвертированы
+                        if (// множественное условие
+                            data.choices && data.choices[0] &&
+                            data.choices[0].message &&
+                            data.choices[0].message.content
+                        ) {// если есть нужные данные
+                            response = data.choices[0].message.content;
+                        } else error = 4;
+                    } else error = 3;
                 };
                 // возвращаем результат
                 return response;
