@@ -1,4 +1,4 @@
-/* 0.2.11 взаимодействие с redmine по средствам api
+/* 0.2.12 взаимодействие с redmine по средствам api
 
 cscript redmine.min.js <instance> <method> [... <param>]
 cscript redmine.min.js <instance> users.sync <source> <fields> [<auth>]
@@ -656,6 +656,18 @@ var redmine = new App({
                         if (params[0]) value = value.split(params[0]).join(params[1] || "");
                         // возвращаем результат
                         return value;
+                        break;
+                    case "split" == name.toLowerCase():// разбиение и получение фрагмента
+                        // очищаем значение
+                        value = data ? "" + data : "";
+                        // форматируем значение
+                        flag = false;// найдено ли совпадение
+                        if (params[0] && params[1] && !isNaN(params[1])) {
+                            value = value.split(params[0])[params[1]];
+                            if (value) flag = true;
+                        };
+                        // возвращаем результат
+                        if (flag) return value;
                         break;
                     case "date" == name.toLowerCase():// замена значений
                         // обрабатываем значение
